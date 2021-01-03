@@ -23,9 +23,9 @@ class PCPartPickerList:
         
         self.url = ''
         self.total = '0.0'
-        self.desired_cols = ['component', 'name', 'price']
+        self.desired_cols = ['component', 'name', 'price', 'where']
         self.part_list = []
-
+    
     def request_page_data(self, url: str):
         """Requests the PC Part Picker url for HTML text.
         
@@ -49,7 +49,7 @@ class PCPartPickerList:
             logging.error('Could not resolve PC Part Picker URL. Status code: %s, URL: %s',
                           response.status_code, self.url)
             raise AttributeError('PC Part Picker URL or Page malformed. URL: %s', self.url)
-
+    
     def parse_page(self, html_doc):
         """Parses the provided html_doc for its component list.
         
@@ -60,18 +60,18 @@ class PCPartPickerList:
         # Use BeautifulSoup to find the div with class '.partlist' (Only one)
         soup = BeautifulSoup(html_doc, 'lxml')
         div_partlist = soup.find("div", class_="partlist")
-
+        
         # Check if the div was found and it contains a <table> element
         if div_partlist and div_partlist.table:
             logging.info('Found the part list table')
-
+            
             # Parse the PC parts
             table_body = div_partlist.table.tbody
             self.parse_list(table_body)
-
+        
         else:
             logging.error('Could not find the part list table.\n URL: %s', self.url)
-
+    
     def parse_list(self, table_body):
         """Parses the only the component list table body from PC Part Picker."
         
@@ -86,15 +86,15 @@ class PCPartPickerList:
             row_classes = row.get('class')
             if row_classes:
                 if 'tr__product' in row_classes:
-                
+                    
                     # TODO: Check if the data was empty or bad
                     component = Part(**data)
                     self.part_list.append(component)
-                    
+                
                 elif 'tr__total--final' in row_classes:
                     # Text will be: 'Total: <currency><price>
                     self.total = row.text.replace('Total:', '').strip()
-
+    
     def parse_row(self, table_row):
         """Parses a single row of the component list table.
         
@@ -116,11 +116,11 @@ class PCPartPickerList:
             # The column has no classes, ignore it
             if not col_classes:
                 continue
-
+            
             # Class name format: .td__<name> (td--empty)
             col_name = col_classes[0]
             col_name = col_name[4:]
-
+            
             # Check if it is a wanted column
             if col_name in self.desired_cols:
                 
@@ -130,40 +130,45 @@ class PCPartPickerList:
                     part_url = 'https://pcpartpicker.com' + col.a.get('href')
                     data['name'] = part_name.strip()
                     data['url'] = part_url
-
+                
                 # Get the price. Only a link if the vendor is specified
                 elif col_name == 'price' and 'td--empty' not in col_classes:
                     if col.find('a'):
                         price = col.a.text.strip()
-                        
-                        vendor_url = col.a.get('href')
-                        data['vendor_url'] = vendor_url
-                        
-                        # Link format: /mr/<vendor name>/<hash>
-                        vendor = re.findall("\/mr\/(\w*)\/", vendor_url)
-                        
-                        # TODO: Improve upon vendor names
-                        if len(vendor) != 0:
-                            vendor = update_vendor(vendor[0])
-                            data['vendor'] = vendor
                     else:
                         price = col.text.strip()
                     
                     # 'Price' is a header used for XS screens
                     data['price'] = price.replace('Price', '')
-                        
-                # Only other column is the 'Component.' Always a link
-                else:
+                
+                # Always a link
+                elif col_name == 'component':
                     data['component'] = col.a.text.strip()
-        
-        return data
+                
+                # Get the vendor, or if its been purchased
+                elif col_name == 'where' and 'td--empty' not in col_classes:
+                    if col.text == 'Purchased':
+                        data['vendor'] = 'Purchased'
+                    elif col.find('a'):
+                        vendor_url = col.a.get('href')
+                        data['vendor_url'] = vendor_url
     
+                        # Link format: /mr/<vendor name>/<hash>
+                        vendor = re.findall("\/mr\/(\w*)\/", vendor_url)
+    
+                        # TODO: Improve upon vendor names
+                        if len(vendor) != 0:
+                            vendor = update_vendor(vendor[0])
+                            data['vendor'] = vendor
+
+        return data
+
     def print_parts(self):
         """Prints the parts from a component list."""
         for part in self.part_list:
             print(part)
-        
-        
+
+
 # TODO: Store in another format or create them more intelligently?
 # One word vendors are taken care of by simply capitalizing them.
 vendor_mapping = {
