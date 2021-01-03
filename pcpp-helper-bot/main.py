@@ -1,9 +1,10 @@
 from pcpartpickerlist import PCPartPickerList
+from markupcreator import MarkupCreator
 
 if __name__ == '__main__':
     test_url = 'https://pcpartpicker.com/list/PtCbTJ'
     
-    test_html = 'C:/Users/willi/Development/PycharmProjects/pcpp-helper-bot/test-pages/page_one.htm'
+    test_html = 'C:/Users/willi/Development/PycharmProjects/pcpp-helper-bot/test-pages/page_two.htm'
     
     pcpp = PCPartPickerList()
     
@@ -13,3 +14,7 @@ if __name__ == '__main__':
     pcpp.parse_page(page_html)
     pcpp.print_parts()
     print(pcpp.total)
+    
+    MC = MarkupCreator(test_url, pcpp.parts_list, pcpp.total)
+    MC.create_markup_table()
+    print(MC.markup)
