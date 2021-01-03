@@ -133,3 +133,6 @@ dmypy.json
 
 # Testing Data
 test-pages/
+
+# Credentials
+creds.txt
