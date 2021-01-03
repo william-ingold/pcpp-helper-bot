@@ -8,24 +8,55 @@ from part import Part
 
 
 class PCPartPickerList:
+    """Parses component list table from PC Part Picker.
     
-    def __init__(self, url: str):
-        self.url = url
-        self.total = 0.0
+    This can take either URL to the PC Part Picker list, or an HTML document,
+    and parses each component. A component is simply a :class:`~pcpp-helper-bot.Part` object.
+    
+    Attributes:
+        total (str): String containing the currency and price.
+        part_list (list(Part)): List of parts from the PC Part Picker list.
+    """
+    
+    def __init__(self):
+        """Initializes setup variables."""
+        
+        self.url = ''
+        self.total = '0.0'
         self.desired_cols = ['component', 'name', 'price']
         self.part_list = []
 
-    def request_page_data(self):
+    def request_page_data(self, url: str):
+        """Requests the PC Part Picker url for HTML text.
+        
+        Args:
+            url (str): URL to a PC Part Picker component list.
+            
+        Returns:
+            HTML text from the page of the URL.
+            
+        Raises:
+            AttributeError if the URL or page was malformed.
+        """
+        
+        self.url = url
         response = requests.get(self.url)
         
         if response.status_code == 200:
             logging.info('Request status code was successful')
-            self.parse_page(response.text)
+            return response.text
         else:
             logging.error('Could not resolve PC Part Picker URL. Status code: %s, URL: %s',
                           response.status_code, self.url)
+            raise AttributeError('PC Part Picker URL or Page malformed. URL: %s', self.url)
 
     def parse_page(self, html_doc):
+        """Parses the provided html_doc for its component list.
+        
+        Args:
+            html_doc (str): HTML document with component list.
+        """
+        
         # Use BeautifulSoup to find the div with class '.partlist' (Only one)
         soup = BeautifulSoup(html_doc, 'lxml')
         div_partlist = soup.find("div", class_="partlist")
@@ -42,6 +73,13 @@ class PCPartPickerList:
             logging.error('Could not find the part list table.\n URL: %s', self.url)
 
     def parse_list(self, table_body):
+        """Parses the only the component list table body from PC Part Picker."
+        
+        Args:
+            table_body (:obj:`bs4.element.tag`): BeautifulSoup object holding
+                the table body tag <tbody> of the component list.
+        """
+        
         for row in table_body.find_all('tr'):
             data = self.parse_row(row)
             
@@ -58,6 +96,17 @@ class PCPartPickerList:
                     self.total = row.text.replace('Total:', '').strip()
 
     def parse_row(self, table_row):
+        """Parses a single row of the component list table.
+        
+        A row may either be a component, or the total pricing.
+        
+        Args:
+            table_row (:obj:`bs4.element.tag`): A <tr> from the component table list.
+
+        Returns:
+            A :dict: holding the component, name, url, price, vendor, and vendor_url.
+        """
+        
         data = {'component': '', 'name': '', 'url': '', 'price': -1.0,
                 'vendor': '', 'vendor_url': ''}
         
@@ -109,19 +158,14 @@ class PCPartPickerList:
         
         return data
     
-    
-    def get_data(self):
-        return {'Parts': self.part_list, 'Total': self.total}
-    
     def print_parts(self):
+        """Prints the parts from a component list."""
         for part in self.part_list:
             print(part)
         
-    def print_total(self):
-        print(self.total)
-        
         
 # TODO: Store in another format or create them more intelligently?
+# One word vendors are taken care of by simply capitalizing them.
 vendor_mapping = {
     'newegg': 'NewEgg',
     'bestbuy': 'Best Buy',
@@ -131,7 +175,17 @@ vendor_mapping = {
     'alternatebe': 'Alternate Belgium'
 }
 
+
 def update_vendor(vendor: str):
+    """Updates the vendor name to a proper format.
+    
+    Args:
+        vendor (str): Name of the vendor.
+
+    Returns:
+        A properly formatted vendor name.
+    """
+    
     if vendor in vendor_mapping:
         return vendor_mapping[vendor]
     else:
