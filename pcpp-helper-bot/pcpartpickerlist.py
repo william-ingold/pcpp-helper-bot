@@ -127,7 +127,7 @@ class PCPartPickerList:
                 # Get the name. Always a link, since it is within PCPartPicker
                 if col_name == 'name':
                     part_name = col.a.text
-                    part_url = 'https://pcpartpicker.com' + col.a.get('href')
+                    part_url = col.a.get('href')
                     data['name'] = part_name.strip()
                     data['url'] = part_url
                 
