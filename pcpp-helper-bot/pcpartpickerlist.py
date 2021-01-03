@@ -15,7 +15,7 @@ class PCPartPickerList:
     
     Attributes:
         total (str): String containing the currency and price.
-        part_list (list(Part)): List of parts from the PC Part Picker list.
+        parts_list (list(Part)): List of parts from the PC Part Picker list.
     """
     
     def __init__(self):
@@ -24,7 +24,7 @@ class PCPartPickerList:
         self.url = ''
         self.total = '0.0'
         self.desired_cols = ['component', 'name', 'price', 'where']
-        self.part_list = []
+        self.parts_list = []
     
     def request_page_data(self, url: str):
         """Requests the PC Part Picker url for HTML text.
@@ -89,7 +89,7 @@ class PCPartPickerList:
                     
                     # TODO: Check if the data was empty or bad
                     component = Part(**data)
-                    self.part_list.append(component)
+                    self.parts_list.append(component)
                 
                 elif 'tr__total--final' in row_classes:
                     # Text will be: 'Total: <currency><price>
@@ -165,14 +165,13 @@ class PCPartPickerList:
 
     def print_parts(self):
         """Prints the parts from a component list."""
-        for part in self.part_list:
+        for part in self.parts_list:
             print(part)
 
 
 # TODO: Store in another format or create them more intelligently?
 # One word vendors are taken care of by simply capitalizing them.
 vendor_mapping = {
-    'newegg': 'NewEgg',
     'bestbuy': 'Best Buy',
     'westerndigital': 'Western Digital',
     'bhphotovideo': 'B&H Photo',
