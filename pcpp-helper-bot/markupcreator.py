@@ -2,7 +2,7 @@ from datetime import datetime
 import pytz
 from typing import List
 
-from pcpartpickerlist import Part
+from pcpp.part import Part
 
 # Example Markup Table
 """
