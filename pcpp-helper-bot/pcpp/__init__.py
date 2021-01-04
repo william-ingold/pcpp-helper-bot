@@ -1,0 +1,2 @@
+class PCPartPickerList(object):
+    pass
