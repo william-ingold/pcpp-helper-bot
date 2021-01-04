@@ -154,7 +154,7 @@ class PCPartPickerList:
                         data['vendor_url'] = vendor_url
     
                         # Link format: /mr/<vendor name>/<hash>
-                        vendor = re.findall("\/mr\/(\w*)\/", vendor_url)
+                        vendor = re.findall(r"\/mr\/(\w*)\/", vendor_url)
     
                         # TODO: Improve upon vendor names
                         if len(vendor) != 0:
