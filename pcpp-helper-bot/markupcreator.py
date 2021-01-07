@@ -23,6 +23,7 @@ Type|Item|Price
 """
 
 
+# TODO: Rename to TableCreator or something more apt?
 class MarkupCreator:
     """Create a Markup table holding the provided component list."""
 
