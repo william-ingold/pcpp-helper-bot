@@ -53,7 +53,7 @@ class PCPPHelperBot:
             
             # Only look at text submissions and with the appropriate flairs
             if flair and flair in self.pertinent_flairs and submission.is_self:
-                pcpp_url = self.detect_pcpp_elements(submission)
+                pcpp_url = self.detect_pcpp_elements(submission.selftext)
                 
                 # TODO: Only reply to comments if they have requested it?
                 """
