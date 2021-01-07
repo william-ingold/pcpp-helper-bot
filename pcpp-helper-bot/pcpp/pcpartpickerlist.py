@@ -4,7 +4,7 @@ import re
 
 from bs4 import BeautifulSoup
 
-from part import Part
+from pcpp.part import Part
 
 
 class PCPartPickerList:
