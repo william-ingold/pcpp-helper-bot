@@ -89,7 +89,7 @@ class PCPPHelperBot:
         from the PC Part Picker list URL.
         
         Args:
-            pcpp_url (str):
+            pcpp_url (str): PC Part Picker list URL
             submission (:obj"`PRAW.Submission`): A Submission object from PRAW
 
         Returns:
