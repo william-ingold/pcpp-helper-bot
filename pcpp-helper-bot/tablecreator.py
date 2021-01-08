@@ -23,8 +23,7 @@ Type|Item|Price
 """
 
 
-# TODO: Rename to TableCreator or something more apt?
-class MarkupCreator:
+class TableCreator:
     """Create a Markup table holding the provided component list."""
 
     def __init__(self, url: str, parts_list: List[Part], total: str):

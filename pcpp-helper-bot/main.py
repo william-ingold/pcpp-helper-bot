@@ -1,5 +1,5 @@
 from pcpp.pcpartpickerlist import PCPartPickerList
-from markupcreator import MarkupCreator
+from tablecreator import TableCreator
 
 from pcpphelperbot import PCPPHelperBot
 
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     pcpp.print_parts()
     print(pcpp.total)
     
-    MC = MarkupCreator(url, pcpp.parts_list, pcpp.total)
+    MC = TableCreator(url, pcpp.parts_list, pcpp.total)
     MC.create_markup_table()
     print(MC.markup)
     

@@ -3,7 +3,7 @@ import re
 
 import praw
 
-from markupcreator import MarkupCreator
+from tablecreator import TableCreator
 
 class PCPPHelperBot:
     """Posts PC Part Picker markup tables when applicable.
@@ -100,7 +100,7 @@ class PCPPHelperBot:
             print(f"No url, or had table from {submission.title}")
             return None
         else:
-            # TODO: Hand submission data to MarkupCreator
+            # TODO: Hand submission data to TableCreator
             print(f"Had url {pcpp_url} from {submission.title}")
             return None # TODO: Return the Reply object
 
