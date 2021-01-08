@@ -90,8 +90,8 @@ class TableCreator:
         
         # Vendor is 'Purchased', <Vendor name> with a url, or empty
         vendor = part.vendor
-        if len(vendor) != 0 and len(part.vendor_url) != 0:
-            vendor = f"@ [{part.vendor}]({part.vendor_url})"
+        if len(vendor) != 0 and len(part.vendor_aff_url) != 0:
+            vendor = f"@ [{part.vendor}]({part.vendor_aff_url})"
             
         row = f" {component} | {item} | {price} {vendor}"
         return row

@@ -17,7 +17,7 @@ def run_parse_live():
     test_url = 'https://pcpartpicker.com/list/HQzZgJ'
     live_html = pcpp.request_page_data(test_url)
 
-    return page_html, test_url
+    return live_html, test_url
 
 
 def run_reddit_bot():
@@ -28,7 +28,7 @@ def run_reddit_bot():
 if __name__ == '__main__':
     pcpp = PCPartPickerList()
     
-    page_html, url = run_parse_local()
+    page_html, url = run_parse_live()
     pcpp.parse_page(page_html)
     pcpp.print_parts()
     print(pcpp.total)

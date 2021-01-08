@@ -105,11 +105,11 @@ class PCPartPickerList:
             table_row (:obj:`bs4.element.tag`): A <tr> from the component table list.
 
         Returns:
-            A :dict: holding the component, name, url, price, vendor, and vendor_url.
+            A :dict: holding the component, name, url, price, vendor, and vendor_aff_url.
         """
         
         data = {'component': '', 'name': '', 'url': '', 'price': -1.0,
-                'vendor': '', 'vendor_url': ''}
+                'vendor': '', 'vendor_aff_url': '', 'vendor_url': ''}
         
         for col in table_row.find_all('td'):
             col_classes = col.get('class')
@@ -155,11 +155,16 @@ class PCPartPickerList:
                     if col.text == 'Purchased':
                         data['vendor'] = 'Purchased'
                     elif col.find('a'):
-                        vendor_url = col.a.get('href')
-                        data['vendor_url'] = self.pcpp_base_url + vendor_url
+                        vendor_aff_url = col.a.get('href')
+                        data['vendor_aff_url'] = self.pcpp_base_url + vendor_aff_url
+                        
+                        # Get the actual vendor URL (redirected to it)
+                        r = requests.get(data['vendor_aff_url'])
+                        if len(r.history) > 1:
+                            data['vendor_url'] = r.history[-1].url
     
                         # Link format: /mr/<vendor name>/<hash>
-                        vendor = re.findall(r"\/mr\/(\w*)\/", vendor_url)
+                        vendor = re.findall(r"\/mr\/(\w*)\/", vendor_aff_url)
     
                         # TODO: Improve upon vendor names
                         if len(vendor) != 0:

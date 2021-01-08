@@ -5,6 +5,7 @@ import praw
 
 from tablecreator import TableCreator
 
+
 class PCPPHelperBot:
     """Posts PC Part Picker markup tables when applicable.
     
