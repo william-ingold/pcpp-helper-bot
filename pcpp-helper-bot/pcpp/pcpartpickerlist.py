@@ -134,13 +134,17 @@ class PCPartPickerList:
                 
                 # Get the price. Only a link if the vendor is specified
                 elif col_name == 'price' and 'td--empty' not in col_classes:
+                    # Remove the h6.xs-block with the header "Price" for smaller screens
+                    price_header = col.find('h6', class_='xs-block')
+                    if price_header:
+                        price_header.decompose()
+                    
                     if col.find('a'):
                         price = col.a.text.strip()
                     else:
                         price = col.text.strip()
                     
-                    # 'Price' is a header used for XS screens
-                    data['price'] = price.replace('Price', '')
+                    data['price'] = price
                 
                 # Always a link
                 elif col_name == 'component':
