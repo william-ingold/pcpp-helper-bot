@@ -21,6 +21,7 @@ class PCPartPickerList:
     def __init__(self):
         """Initializes setup variables."""
         
+        self.pcpp_base_url = 'https://pcpartpicker.com'
         self.url = ''
         self.total = '0.0'
         self.desired_cols = ['component', 'name', 'price', 'where']
@@ -129,7 +130,7 @@ class PCPartPickerList:
                     part_name = col.a.text
                     part_url = col.a.get('href')
                     data['name'] = part_name.strip()
-                    data['url'] = part_url
+                    data['url'] = self.pcpp_base_url + part_url
                 
                 # Get the price. Only a link if the vendor is specified
                 elif col_name == 'price' and 'td--empty' not in col_classes:
@@ -151,7 +152,7 @@ class PCPartPickerList:
                         data['vendor'] = 'Purchased'
                     elif col.find('a'):
                         vendor_url = col.a.get('href')
-                        data['vendor_url'] = vendor_url
+                        data['vendor_url'] = self.pcpp_base_url + vendor_url
     
                         # Link format: /mr/<vendor name>/<hash>
                         vendor = re.findall(r"\/mr\/(\w*)\/", vendor_url)
