@@ -27,23 +27,18 @@ class TableCreator:
     """Create a Markup table holding the provided component list."""
 
     def __init__(self, url: str, parts_list: List[Part], total: str):
-        """Initialize necessary variables.
+        """Initialize necessary variables. """
+        
+        self.timezone = pytz.timezone("America/New_York")
+        self.markup = ""
+
+    def create_markup_table(self, url: str, parts_list: List[Part], total: str):
+        """Creates a markup table from the provided information.
         
         Args:
             url (str): The URL to the PCPartPicker list.
             parts_list (List[Part]): List of Part objects.
             total (str): Total cost of the component list.
-        """
-        
-        self.url = url
-        self.parts_list = parts_list
-        self.total = total
-
-        self.timezone = pytz.timezone("America/New_York")
-        self.markup = ""
-
-    def create_markup_table(self):
-        """Creates a markup table from the provided information.
         
         Returns:
             A string containing the markup table for the component list,
@@ -57,20 +52,21 @@ class TableCreator:
             
         """
         
-        url_link = f"[PCPartPicker Part List]({self.url})\n\n"
+        url_link = f"[PCPartPicker Part List]({url})\n\n"
         headers = "Type|Item|Price\n"
         headers += ":----|:----|:----\n"
     
         body = ""
-        for part in self.parts_list:
+        for part in parts_list:
             body += self.create_markup_part_row(part) + "\n"
     
-        footer = self.create_markup_footer()
+        footer = self.create_markup_footer(total)
     
         self.markup = url_link + headers + body + footer
         return self.markup
 
-    def create_markup_part_row(self, part: Part):
+    @staticmethod
+    def _create_markup_part_row(part: Part):
         """Creates the markup for a single component.
         
         Args:
@@ -90,13 +86,15 @@ class TableCreator:
         
         # Vendor is 'Purchased', <Vendor name> with a url, or empty
         vendor = part.vendor
-        if len(vendor) != 0 and len(part.vendor_aff_url) != 0:
+        if len(part.vendor_aff_url) != 0:
             vendor = f"@ [{part.vendor}]({part.vendor_aff_url})"
+        elif vendor == "Purchased":
+            vendor = "- " + vendor
             
         row = f" {component} | {item} | {price} {vendor}"
         return row
         
-    def create_markup_footer(self):
+    def _create_markup_footer(self, total):
         """Creates the markup for the footer section with the date and total.
         
         Returns:
@@ -104,8 +102,9 @@ class TableCreator:
             | **Total** | **<total>**
             | Generated at <time> |
         """
+        
         price_info = "*Prices include shipping, taxes, rebates, and discounts*"
-        total_price = f"**Total** | **{self.total}**"
+        total_price = f"**Total** | **{total}**"
         
         now = self.timezone.localize(datetime.now())
         now_str = now.strftime("%Y-%m-%d %H:%M:%S %Z%z")
