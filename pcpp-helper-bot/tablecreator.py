@@ -26,7 +26,7 @@ Type|Item|Price
 class TableCreator:
     """Create a Markup table holding the provided component list."""
 
-    def __init__(self, url: str, parts_list: List[Part], total: str):
+    def __init__(self):
         """Initialize necessary variables. """
         
         self.timezone = pytz.timezone("America/New_York")
@@ -58,9 +58,9 @@ class TableCreator:
     
         body = ""
         for part in parts_list:
-            body += self.create_markup_part_row(part) + "\n"
+            body += self._create_markup_part_row(part) + "\n"
     
-        footer = self.create_markup_footer(total)
+        footer = self._create_markup_footer(total)
     
         self.markup = url_link + headers + body + footer
         return self.markup
