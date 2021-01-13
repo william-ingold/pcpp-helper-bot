@@ -8,7 +8,6 @@ from bs4 import BeautifulSoup
 from pcpp.part import Part
 
 
-# TODO: Currently one PCPartPickerList per list. Make it only one needed?
 class PCPartPickerList:
     """Parses component list table from PC Part Picker.
     
@@ -69,6 +68,11 @@ class PCPartPickerList:
             html_doc (str): HTML document with component list.
         """
         
+        # Reset data
+        self.parts_list = []
+        self.url = ''
+        self.total = '0.0'
+
         # Use BeautifulSoup to find the div with class '.partlist' (Only one)
         soup = BeautifulSoup(html_doc, 'lxml')
         div_partlist = soup.find("div", class_="partlist")
@@ -79,12 +83,12 @@ class PCPartPickerList:
             
             # Parse the PC parts
             table_body = div_partlist.table.tbody
-            self.parse_list(table_body)
+            self._parse_list(table_body)
         
         else:
             logging.error('Could not find the part list table.\n URL: %s', self.url)
 
-    def parse_identifiable_page(self, iden_url: str):
+    def get_anon_list_url(self, iden_url: str):
         """Parses a user's list page for the anonymous list url, then parses
         that page.
 
@@ -105,7 +109,7 @@ class PCPartPickerList:
         
         return anon_url
 
-    def parse_list(self, table_body):
+    def _parse_list(self, table_body):
         """Parses the only the component list table body from PC Part Picker."
         
         Args:
@@ -114,7 +118,7 @@ class PCPartPickerList:
         """
         
         for row in table_body.find_all('tr'):
-            data = self.parse_row(row)
+            data = self._parse_row(row)
             
             row_classes = row.get('class')
             if row_classes:
@@ -128,7 +132,7 @@ class PCPartPickerList:
                     # Text will be: 'Total: <currency><price>
                     self.total = row.text.replace('Total:', '').strip()
     
-    def parse_row(self, table_row):
+    def _parse_row(self, table_row):
         """Parses a single row of the component list table.
         
         A row may either be a component, or the total pricing.
