@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from pcpp.part import Part
 
 
-class PCPartPickerList:
+class PCPPParser:
     """Parses component list table from PC Part Picker.
     
     This can take either URL to the PC Part Picker list, or an HTML document,
@@ -84,6 +84,8 @@ class PCPartPickerList:
             # Parse the PC parts
             table_body = div_partlist.table.tbody
             self._parse_list(table_body)
+            
+            return self.parts_list, self.total
         
         else:
             logging.error('Could not find the part list table.\n URL: %s', self.url)
@@ -202,6 +204,7 @@ class PCPartPickerList:
                             vendor = update_vendor(vendor[0])
                             data['vendor'] = vendor
                             
+                        # If to utilize vendor url and affiliate url
                         if self.GET_VENDOR_URLS:
                             data['vendor_aff_url'] = vendor_aff_url
                             # Get the actual vendor URL (redirected to it)
