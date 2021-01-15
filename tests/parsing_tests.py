@@ -1,6 +1,7 @@
 import unittest
 from pcpp.pcppparser import PCPPParser
-from postparsing import detect_pcpp_html_elements
+from postparsing import detect_pcpp_html_elements, get_urls_with_no_table, Table, \
+    combine_iden_anon_urls
 
 
 def read_file(filepath):
@@ -60,11 +61,9 @@ class MyTestCase(unittest.TestCase):
         
         self.assertEqual(1, len(elements['anon']))
         expected_anon = 'https://pcpartpicker.com/list/phGvqp'
-        self.assertEqual(expected_anon, elements['anon'][0]['href'])
-        
-        self.assertEqual(1, len(elements['pcpp_headers']))
-        self.assertEqual(1, len(elements['table_headers']))
-        self.assertEqual(1, len(elements['table_footers']))
+        self.assertEqual(expected_anon, elements['anon'][0])
+        self.assertEqual(1, len(elements['tables']))
+        self.assertTrue(elements['tables'][0].is_valid)
 
     def test_parse_reddit_with_table_euro(self):
         fp = '../test-posts/table_euro.htm'
@@ -76,11 +75,10 @@ class MyTestCase(unittest.TestCase):
     
         self.assertEqual(1, len(elements['anon']))
         expected_anon = 'https://be.pcpartpicker.com/list/KytcBc'
-        self.assertEqual(expected_anon, elements['anon'][0]['href'])
+        self.assertEqual(expected_anon, elements['anon'][0])
     
-        self.assertEqual(1, len(elements['pcpp_headers']))
-        self.assertEqual(1, len(elements['table_headers']))
-        self.assertEqual(1, len(elements['table_footers']))
+        self.assertEqual(1, len(elements['tables']))
+        self.assertTrue(elements['tables'][0].is_valid())
 
     def test_parse_reddit_with_table_broken(self):
         fp = '../test-posts/table_broken.htm'
@@ -92,11 +90,9 @@ class MyTestCase(unittest.TestCase):
     
         self.assertEqual(1, len(elements['anon']))
         expected_anon = 'https://pcpartpicker.com/list/9qMcNP'
-        self.assertEqual(expected_anon, elements['anon'][0]['href'])
+        self.assertEqual(expected_anon, elements['anon'][0])
     
-        self.assertEqual(0, len(elements['pcpp_headers']))
-        self.assertEqual(0, len(elements['table_headers']))
-        self.assertEqual(0, len(elements['table_footers']))
+        self.assertEqual(0, len(elements['tables']))
 
     def test_parse_reddit_with_table_broken_partial(self):
         fp = '../test-posts/table_partial.htm'
@@ -108,11 +104,10 @@ class MyTestCase(unittest.TestCase):
     
         self.assertEqual(1, len(elements['anon']))
         expected_anon = 'https://pcpartpicker.com/list/C6qdgt'
-        self.assertEqual(expected_anon, elements['anon'][0]['href'])
+        self.assertEqual(expected_anon, elements['anon'][0])
     
-        self.assertEqual(1, len(elements['pcpp_headers']))
-        self.assertEqual(1, len(elements['table_headers']))
-        self.assertEqual(0, len(elements['table_footers']))
+        self.assertEqual(1, len(elements['tables']))
+        self.assertFalse(elements['tables'][0].is_valid())
 
     def test_parse_reddit_with_table_unfin_footer(self):
         fp = '../test-posts/table_unfin_footer.htm'
@@ -124,11 +119,10 @@ class MyTestCase(unittest.TestCase):
     
         self.assertEqual(1, len(elements['anon']))
         expected_anon = 'https://pcpartpicker.com/list/JLpB4d'
-        self.assertEqual(expected_anon, elements['anon'][0]['href'])
+        self.assertEqual(expected_anon, elements['anon'][0])
     
-        self.assertEqual(1, len(elements['pcpp_headers']))
-        self.assertEqual(1, len(elements['table_headers']))
-        self.assertEqual(1, len(elements['table_footers']))
+        self.assertEqual(1, len(elements['tables']))
+        self.assertTrue(elements['tables'][0].is_valid())
 
     def test_parse_reddit_with_anon_no_table(self):
         fp = '../test-posts/anon_link.htm'
@@ -140,11 +134,9 @@ class MyTestCase(unittest.TestCase):
     
         self.assertEqual(1, len(elements['anon']))
         expected_anon = 'https://pcpartpicker.com/list/3pK2Bc'
-        self.assertEqual(expected_anon, elements['anon'][0]['href'])
+        self.assertEqual(expected_anon, elements['anon'][0])
     
-        self.assertEqual(0, len(elements['pcpp_headers']))
-        self.assertEqual(0, len(elements['table_headers']))
-        self.assertEqual(0, len(elements['table_footers']))
+        self.assertEqual(0, len(elements['tables']))
 
     def test_parse_reddit_with_iden_no_table(self):
         fp = '../test-posts/iden_link.htm'
@@ -154,12 +146,10 @@ class MyTestCase(unittest.TestCase):
     
         self.assertEqual(1, len(elements['identifiable']))
         expected_iden = 'https://pcpartpicker.com/user/RunDoctorRun/saved/FFrVWZ'
-        self.assertEqual(expected_iden, elements['identifiable'][0]['href'])
+        self.assertEqual(expected_iden, elements['identifiable'][0])
     
         self.assertEqual(0, len(elements['anon']))
-        self.assertEqual(0, len(elements['pcpp_headers']))
-        self.assertEqual(0, len(elements['table_headers']))
-        self.assertEqual(0, len(elements['table_footers']))
+        self.assertEqual(0, len(elements['tables']))
 
     def test_parse_reddit_with_iden_view_no_table(self):
         fp = '../test-posts/iden_link_view.htm'
@@ -169,12 +159,70 @@ class MyTestCase(unittest.TestCase):
     
         self.assertEqual(1, len(elements['identifiable']))
         expected_iden = 'https://pcpartpicker.com/user/haydenholton/saved/#view=szvVWZ'
-        self.assertEqual(expected_iden, elements['identifiable'][0]['href'])
+        self.assertEqual(expected_iden, elements['identifiable'][0])
     
         self.assertEqual(0, len(elements['anon']))
-        self.assertEqual(0, len(elements['pcpp_headers']))
-        self.assertEqual(0, len(elements['table_headers']))
-        self.assertEqual(0, len(elements['table_footers']))
+        self.assertEqual(0, len(elements['tables']))
+        
+    def test_pcpp_urls_anon_no_table(self):
+        fp = '../test-posts/anon_link.htm'
+        text = read_file(fp)
+        
+        elements = detect_pcpp_html_elements(text)
+        all_anon_urls = combine_iden_anon_urls(elements['anon'], elements['identifiable'])
+        remaining_urls = get_urls_with_no_table(all_anon_urls, elements['tables'])
+        
+        self.assertEqual(1, len(remaining_urls))
+
+    def test_pcpp_urls_broken_table(self):
+        fp = '../test-posts/table_broken.htm'
+        text = read_file(fp)
+    
+        elements = detect_pcpp_html_elements(text)
+        all_anon_urls = combine_iden_anon_urls(elements['anon'], elements['identifiable'])
+        remaining_urls = get_urls_with_no_table(all_anon_urls, elements['tables'])
+    
+        self.assertEqual(1, len(remaining_urls))
+
+    def test_pcpp_urls_partial_table(self):
+        fp = '../test-posts/table_partial.htm'
+        text = read_file(fp)
+    
+        elements = detect_pcpp_html_elements(text)
+        all_anon_urls = combine_iden_anon_urls(elements['anon'], elements['identifiable'])
+        remaining_urls = get_urls_with_no_table(all_anon_urls, elements['tables'])
+    
+        self.assertEqual(1, len(remaining_urls))
+
+    def test_pcpp_urls_unfin_table(self):
+        fp = '../test-posts/table_unfin_footer.htm'
+        text = read_file(fp)
+    
+        elements = detect_pcpp_html_elements(text)
+        all_anon_urls = combine_iden_anon_urls(elements['anon'], elements['identifiable'])
+        remaining_urls = get_urls_with_no_table(all_anon_urls, elements['tables'])
+    
+        self.assertEqual(0, len(remaining_urls))
+
+    def test_pcpp_urls_table_us(self):
+        fp = '../test-posts/table_us.htm'
+        text = read_file(fp)
+    
+        elements = detect_pcpp_html_elements(text)
+        all_anon_urls = combine_iden_anon_urls(elements['anon'], elements['identifiable'])
+        remaining_urls = get_urls_with_no_table(all_anon_urls, elements['tables'])
+    
+        self.assertEqual(0, len(remaining_urls))
+
+    def test_pcpp_urls_table_euro(self):
+        fp = '../test-posts/table_euro.htm'
+        text = read_file(fp)
+    
+        elements = detect_pcpp_html_elements(text)
+        all_anon_urls = combine_iden_anon_urls(elements['anon'], elements['identifiable'])
+        remaining_urls = get_urls_with_no_table(all_anon_urls, elements['tables'])
+    
+        self.assertEqual(0, len(remaining_urls))
 
 
 if __name__ == '__main__':
