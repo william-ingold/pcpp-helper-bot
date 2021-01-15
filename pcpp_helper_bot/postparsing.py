@@ -1,5 +1,4 @@
 import re
-from enum import Enum
 
 from bs4 import BeautifulSoup
 
@@ -40,3 +39,18 @@ def detect_pcpp_html_elements(text: str):
             'table_footers': table_footers}
 
 
+def count_well_formed_tables(table_headers, table_footers):
+    """Count the number of well-formed tables. """
+    
+    header_count = len(table_headers)
+    footer_count = len(table_footers)
+
+    # No header or footers -> no tables
+    if header_count == 0 or footer_count == 0:
+        return 0, 0
+
+    # Should have a 1:1 ratio of header : footer
+    paired = header_count / footer_count
+    broken = abs(header_count - footer_count)
+    
+    return paired, broken
