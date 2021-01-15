@@ -158,7 +158,7 @@ class MyTestCase(unittest.TestCase):
         elements = detect_pcpp_html_elements(text)
     
         self.assertEqual(1, len(elements['identifiable']))
-        expected_iden = 'https://pcpartpicker.com/user/haydenholton/saved/#view=szvVWZ'
+        expected_iden = 'https://pcpartpicker.com/user/haydenholton/saved/szvVWZ'
         self.assertEqual(expected_iden, elements['identifiable'][0])
     
         self.assertEqual(0, len(elements['anon']))
@@ -223,6 +223,26 @@ class MyTestCase(unittest.TestCase):
         remaining_urls = get_urls_with_no_table(all_anon_urls, elements['tables'])
     
         self.assertEqual(0, len(remaining_urls))
+        
+    def test_pcpp_urls_iden_anon_same(self):
+        fp = '../test-posts/same_anon_iden_links.htm'
+        text = read_file(fp)
+    
+        elements = detect_pcpp_html_elements(text)
+        all_anon_urls = combine_iden_anon_urls(elements['anon'], elements['identifiable'])
+    
+        self.assertEqual(1, len(all_anon_urls))
+        self.assertEqual('https://pcpartpicker.com/list/ZqWwj2', all_anon_urls[0])
+
+    def test_pcpp_urls_iden_anon_same_euro(self):
+        fp = '../test-posts/same_anon_iden_links_euro.htm'
+        text = read_file(fp)
+    
+        elements = detect_pcpp_html_elements(text)
+        all_anon_urls = combine_iden_anon_urls(elements['anon'], elements['identifiable'])
+    
+        self.assertEqual(1, len(all_anon_urls))
+        self.assertEqual('https://dk.pcpartpicker.com/list/ZqWwj2', all_anon_urls[0])
 
 
 if __name__ == '__main__':

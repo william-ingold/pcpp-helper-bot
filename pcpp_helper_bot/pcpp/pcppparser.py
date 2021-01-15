@@ -30,11 +30,11 @@ class PCPPParser:
         self.parts_list = []
         
         self.GET_VENDOR_URLS = False
-        
+    
     def set_local(self):
         """If files are local, full url will be in <a> tags."""
         self.pcpp_base_url = ''
-
+    
     def request_page_data(self, url: str):
         """Requests the PC Part Picker url for HTML text.
         
@@ -56,11 +56,12 @@ class PCPPParser:
                 logging.info('Request status code was successful')
                 return response.text
             else:
-                logging.error(f'Could not resolve PC Part Picker URL. Status code: {response.status_code}, URL: {self.url}')
+                logging.error(
+                    f'Could not resolve PC Part Picker URL. Status code: {response.status_code}, URL: {self.url}')
                 raise AttributeError('PC Part Picker URL or Page malformed', self.url)
         except:
             logging.error(f'Request error: {traceback.print_exc()}')
-        
+    
     def parse_page(self, html_doc):
         """Parses the provided html_doc for its component list.
         
@@ -72,7 +73,7 @@ class PCPPParser:
         self.parts_list = []
         self.url = ''
         self.total = '0.0'
-
+        
         # Use BeautifulSoup to find the div with class '.partlist' (Only one)
         soup = BeautifulSoup(html_doc, 'lxml')
         div_partlist = soup.find("div", class_="partlist")
@@ -89,7 +90,7 @@ class PCPPParser:
         
         else:
             logging.error('Could not find the part list table.\n URL: %s', self.url)
-
+    
     def get_anon_list_url(self, iden_url: str):
         """Parses a user's list page for the anonymous list url, then parses
         that page.
@@ -101,16 +102,23 @@ class PCPPParser:
         Args:
             iden_url (str): An identifiable URL to a PC Part Picker list.
         """
-    
+
         html_doc = self.request_page_data(iden_url)
         soup = BeautifulSoup(html_doc, 'lxml')
-        markup = soup.find('textarea', id='markup_text')
     
-        anon_url_pat = r"(https://pcpartpicker.com/list/\w+)"
-        anon_url = re.search(anon_url_pat, markup).group()
-        
-        return anon_url
-
+        list_name_tag = soup.find('input', {'name': 'permalink_tag'})
+        if list_name_tag:
+            anon_code = list_name_tag['value']
+            
+            region = ''
+            region_match = re.search(r'https://(\w+\.)?pcpartpicker\.com.*', iden_url)
+            if region_match and region_match.group(1):
+                region = region_match.group(1)
+            
+            anon_url = f'https://{region}pcpartpicker.com/list/{anon_code}'
+    
+            return anon_url
+    
     def _parse_list(self, table_body):
         """Parses the only the component list table body from PC Part Picker."
         
@@ -195,15 +203,15 @@ class PCPPParser:
                     elif col.find('a'):
                         vendor_aff_url = col.a.get('href')
                         vendor_aff_url = self.pcpp_base_url + vendor_aff_url
-    
+                        
                         # Link format: /mr/<vendor name>/<hash>
                         vendor = re.findall(r"\/mr\/(\w*)\/", vendor_aff_url)
-    
+                        
                         # TODO: Improve upon vendor names
                         if len(vendor) != 0:
                             vendor = update_vendor(vendor[0])
                             data['vendor'] = vendor
-                            
+                        
                         # If to utilize vendor url and affiliate url
                         if self.GET_VENDOR_URLS:
                             data['vendor_aff_url'] = vendor_aff_url
@@ -213,14 +221,14 @@ class PCPPParser:
                                 data['vendor_url'] = r.history[-1].url
                             elif vendor.lower() == "amazon":
                                 data['vendor_url'] = r.history[0].headers['Location']
-
+        
         return data
-
+    
     def print_parts(self):
         """Prints the parts from a component list."""
         for part in self.parts_list:
             print(part)
-            
+
 
 # TODO: Store in another format or create them more intelligently?
 # One word vendors are taken care of by simply capitalizing them.

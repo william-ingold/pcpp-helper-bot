@@ -47,7 +47,7 @@ def detect_pcpp_html_elements(text: str):
     
     # Grab the urls only
     anon_urls = [a['href'] for a in anon_links]
-    iden_urls = [a['href'] for a in iden_links]
+    iden_urls = [a['href'].replace('#view=', '') for a in iden_links]
     
     table_headers = soup.find_all(pcpp_table_header)
     pcpp_tables = []
@@ -112,7 +112,7 @@ def combine_iden_anon_urls(anon_urls: list, iden_urls: list):
         identifiable list urls (if it wasn't already in the list).
     """
     
-    new_anon_urls = [PCPPParser.get_anon_list_url(url) for url in iden_urls]
+    new_anon_urls = [pcpp_parser.get_anon_list_url(url) for url in iden_urls]
     anon_urls += [url for url in new_anon_urls if url not in anon_urls]
     
     return anon_urls
