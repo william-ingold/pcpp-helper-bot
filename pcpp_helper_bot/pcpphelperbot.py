@@ -5,7 +5,7 @@ import logging
 import praw
 
 from tablecreator import TableCreator
-from postparsing import detect_pcpp_html_elements, count_well_formed_tables
+from postparsing import parse_submission
 from pcpp.pcppparser import PCPPParser
 
 
@@ -46,12 +46,16 @@ class PCPPHelperBot:
         
         self.pcpp_parser = PCPPParser()
         self.table_creator = TableCreator()
+        self.MAX_TABLES = 2
         
         with open('./templates/replytemplate.md', 'r') as template:
             self.REPLY_TEMPLATE = template.read()
         
-        with open('.templates/idenlinkfound.md', 'r') as template:
+        with open('./templates/idenlinkfound.md', 'r') as template:
             self.IDENTIFIABLE_TEMPLATE = template.read()
+        
+        with open('./templates/tableissuetemplate.md', 'r') as template:
+            self.TABLE_TEMPLATE = template.read()
     
     def monitor_subreddit(self, subreddit_name: str):
         """Monitors the subreddit provided (mainly r/buildapc) for new
@@ -66,159 +70,144 @@ class PCPPHelperBot:
         # Stream in new submissions from the subreddit
         for submission in subreddit.stream.submissions():
             flair = submission.link_flair_text
+            # TODO: Check if replied already to this post
             
             # Only look at text submissions and with the appropriate flairs
             if flair in self.pertinent_flairs and submission.is_self:
-                pcpp_elements = detect_pcpp_html_elements(submission.selftext_html)
-                
                 self.all_log.info(f"SUBMISSION: {submission.title} AT {submission.url}")
                 self.all_log.info(f"SUBMISSION TEXT: {submission.selftext}")
                 
-                links_to_post, had_identifiable = self._find_reply_data(pcpp_elements)
+                # Parse pertinent info from the submission
+                tableless_urls, iden_anon_urls, table_data \
+                    = parse_submission(submission.selftext_html, submission.selftext)
                 
-                # TODO: EDIT BELOW
-                """
-                if len(pcpp_elements['table_head']) == 0 and \
-                        len(pcpp_elements['table_foot']) == 0:
-                    
-                    self.all_log.info("NO TABLE")
-                    
-                    pcpp_url = None
-                    if len(pcpp_elements['anon']) != 0:
-                        pcpp_url = pcpp_elements['anon'][0]
-                        self.replied_log.info(f"ANONYMOUS LINK FOUND: {pcpp_url}")
-                    
-                    elif len(pcpp_elements['iden']) != 0:
-                        iden_url = pcpp_elements['iden'][0]
-                        self.replied_log.info(f"IDENTIFIABLE LINK FOUND: {iden_url}")
-                        pcpp_url = self.pcpp_parser.get_anon_list_url(iden_url)
-                        self.replied_log.info(f"ANONYMOUS LINK FOUND AFTER IDEN: {pcpp_url}")
-                    
-                    if pcpp_url:
-                        self._reply_with_table(pcpp_url, submission)
-                else:
-                    self.all_log.info("TABLE FOUND")
-                """
+                # If there are missing/broken tables or identifiable links
+                if len(tableless_urls) != 0 or len(iden_anon_urls) != 0:
+                    # Create the reply with this information
+                    reply_message = self._make_reply(tableless_urls,
+                                                     iden_anon_urls,
+                                                     table_data)
+                    print(reply_message)
+                    # Post the reply!
+                    # submission.reply(reply_message)
     
-    def _find_reply_data(self, pcpp_elements: dict):
-        """Finds data needed to make a reply, such as PCPP links without tables
-        and if identifiable links were used.
+    def _make_reply(self, tableless_urls, iden_anon_urls, table_data):
+        """Creates the full reply message.
         
         Args:
-            pcpp_elements (dict(Lists)): Dictionary of PCPP elements found in the post.
-            
+            tableless_urls (list): List of urls that don't have an accompanying
+                                    table.
+            iden_anon_urls (list): List of (identifiable, anonymous) urls found.
+            table_data (dict): Dictionary describing the table data found
+                                in the submission.
+                                
         Returns:
-            A tuple of links that need tables and if there were identifiable
-            links used in the post.
+            The entire reply message, ready to be posted.
         """
         
-        valid_tables, invalid_tables = \
-            count_well_formed_tables(pcpp_elements['table_headers'],
-                                     pcpp_elements['table_footers'])
-        all_pcpp_links = set()
-        found_identifiable = len(pcpp_elements['iden']) != 0
+        table_markdown = self._make_table_markdown(tableless_urls, table_data)
+        iden_markdown = self._make_identifiable_markdown(iden_anon_urls)
         
-        # Get the anonymous urls from the identifiable links
-        if found_identifiable:
-            for iden_url in pcpp_elements['iden']:
-                all_pcpp_links.add(self.pcpp_parser.get_anon_list_url(iden_url))
+        reply_message = self._put_message_together(table_markdown,
+                                                   iden_markdown)
         
-        # Combine anonymous urls with the ones from the identifiable links
-        if len(pcpp_elements['anon']) != 0:
-            anon_links = {a['href'] for a in pcpp_elements['anon']}
-            all_pcpp_links += anon_links
-        
-        # Figure out which list urls may not have an accompanied table
-        links_to_post = self._get_lists_to_post(all_pcpp_links,
-                                                pcpp_elements['pcpp_headers'],
-                                                valid_tables)
-        
-        return links_to_post, found_identifiable
+        return reply_message
     
-    def _get_lists_to_post(self, links: list, headers: list, valid_tables: int):
-        """Determine which links need to be tables by assuming if there are
-        valid tables, then they have matching headers. Links from the headers
-        are likely coupled with a valid table."""
-        
-        link_count = len(links)
-        
-        if link_count != 0:
-            # Likely the headers are paired with the valid tables, so remove
-            # any links that were already covered by a table
-            if valid_tables != 0 and headers != 0:
-                header_links = {a['href'] for a in headers}
-                links -= header_links
-            
-            return links
-    
-    def _reply_with_table(self, pcpp_url: str, submission: praw.reddit.Submission):
-        """Replies to the submission with a Markup table with the components
-        from the PC Part Picker list URL.
+    def _put_message_together(self, table_markdown, iden_markdown):
+        """Puts together the variable data into a message.
         
         Args:
-            pcpp_url (str): PC Part Picker list URL
-            submission (:obj"`PRAW.Reddit.Submission`): A Submission object from PRAW
-
+            table_markdown (str): Contains the markdown for the table data.
+            iden_markdown (str): Contains the markdown for the identifiable
+                                    message and data.
+                                    
         Returns:
-            PRAW Comment object representing the reply, or None.
+            A string containing the combined reply message.
         """
         
-        if not pcpp_url:
-            print(f"No url, or had table from {submission.title}")
-            return None
-        else:
-            # TODO: Hand submission data to TableCreator
-            html_doc = self.pcpp_parser.request_page_data(pcpp_url)
-            parts_list, total = self.pcpp_parser.parse_page(html_doc)
-            
-            if parts_list:
-                table = self.table_creator.create_markup_table(pcpp_url,
-                                                               parts_list,
-                                                               total)
-                
-                self.replied_log.info(f"TABLE CREATED:\n {table}")
-                return None  # TODO: Return the Reply object
+        reply_message = None
+        message_markdown = []
+        
+        if len(table_markdown) != 0:
+            message_markdown.append(table_markdown)
+        
+        if iden_markdown:
+            message_markdown.append(iden_markdown)
+        
+        if len(message_markdown) != 0:
+            message_markdown = '\n\n'.join(message_markdown)
+            reply_message = self.REPLY_TEMPLATE.replace(':message:', message_markdown)
+        
+        return reply_message
     
-    @staticmethod
-    def detect_pcpp_elements(text):
-        """Detects PC Part Picker tables, anonymous lists, and
-        identifiable lists in the provided text.
-
+    def _make_table_markdown(self, urls, table_data):
+        """Put together the table markdown. This could be up to self.MAX_TABLES.
+        
         Args:
-            text (str): Text of a submission (or comment) from Reddit.
-
+            urls (list): List of PCPP urls to make tables for.
+            table_data (dict): Dictionary describing the table data found
+                                in the submission.
+            
         Returns:
-            A dictionary of sets with the following keys: anon, table_head,
-            table_foot, and iden . Anon holds anonymous list urls,
-            table_head & foot contain the header and footer of properly
-            formatted tables, and iden holds identifiable urls.
+            A string containing the markdown for the tables for the PCPP lists.
         """
         
-        pcpp_elements = {'anon': [], 'table_head': [], 'table_foot': [], 'iden': []}
+        table_message = ''
+        issues = []
         
-        # TODO: Look for newline characters (\n) between rows? Also breaks it
-        # TODO: Combine into looking for the entire table?
-        proper_table_head_pat = r"(?P<table_head>\[PCPartPicker Part List\])\((?P<table_url>https://pcpartpicker.com/list/\w+)\)"
-        proper_table_foot_pat = r"(?P<table_foot>Generated by \[PCPartPicker\])"
+        if urls and 0 < len(urls) <= self.MAX_TABLES:
+            all_table_markdown = []
+            
+            # Create the table markup for each list url
+            for pcpp_url in urls:
+                list_html = self.pcpp_parser.request_page_data(pcpp_url)
+                parts_list, total = self.pcpp_parser.parse_page(list_html)
+                table_markdown = self.table_creator.create_markup_table(pcpp_url, parts_list, total)
+                all_table_markdown.append(table_markdown)
+            
+            # Put the table(s) together
+            all_table_markdown = '\n\n'.join(all_table_markdown)
+            
+            # Check which issue(s) occurred (at least one will match)
+            if table_data['total'] == 0:
+                issues.append("a missing table")
+            if table_data['invalid'] != 0:
+                issues.append("a broken/partial table")
+            if table_data['bad_markdown']:
+                issues.append("escaped markdown")
+            
+            issues_markdown = ','.join(issues)
+            
+            # Input the message data into the template
+            table_message = self.TABLE_TEMPLATE.replace(':issues:', issues_markdown)
+            table_message = table_message.replace(':table:', all_table_markdown)
         
-        anon_list_pat = r"(?P<anon>https://pcpartpicker.com/list/\w+)"
-        identifiable_list_pat = r"\((?P<iden>https://pcpartpicker.com/user/.+)\)"
+        return table_message
+    
+    def _make_identifiable_markdown(self, iden_anon_urls):
+        """Creates the message for when identifiable list urls are found.
         
-        patterns = "|".join([proper_table_head_pat, proper_table_foot_pat, anon_list_pat, identifiable_list_pat])
-        pcpp_elements_re = re.compile(patterns)
+        Args:
+            iden_anon_urls (list): List of (identifiable, anonymous) urls found.
+            
+        Returns:
+            A string containing the markdown message for when identifiable
+            urls are found.
+        """
         
-        for m in pcpp_elements_re.finditer(text):
-            if m.group('anon'):
-                pcpp_elements['anon'].append(m.group('anon'))
-            if m.group('table_head'):
-                pcpp_elements['table_head'].append((m.group('table_url'), (m.group('table_head'))))
-            if m.group('table_foot'):
-                pcpp_elements['table_foot'].append((m.group('table_foot')))
-            if m.group('iden'):
-                iden_url = m.group('iden')
-                # Different view of the page that we don't want
-                iden_url.replace("#view=", '')
-                
-                pcpp_elements['iden'].append(iden_url)
+        iden_markdown = ''
         
-        return pcpp_elements
+        if iden_anon_urls and len(iden_anon_urls) > 0:
+            list_items = []
+            
+            # Create a bullet point showing the anonymous list url for
+            # each identifiable list url found.
+            for iden_url, anon_url in iden_anon_urls:
+                list_items.append(f'* [{iden_url}] &#8594; [{anon_url}]')
+            
+            list_markdown = '\n'.join(list_items)
+            
+            # Put the list into the template
+            iden_markdown = self.IDENTIFIABLE_TEMPLATE.replace(':urls:', list_markdown)
+        
+        return iden_markdown
