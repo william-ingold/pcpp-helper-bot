@@ -29,6 +29,19 @@ def pcpp_table_header(tag: BeautifulSoup):
     return tag.name == 'thead' and tag.text.strip() == 'Type\nItem\nPrice'
 
 
+def detect_escaped_markdown(markdown):
+    # \[PCPartPicker Part List\] Link at head or foot
+    bad_link_pat = r'\\\[PCPartPicker( Part List)?\\\]'
+    
+    # \| -> Table cell divider
+    bad_pipe_pat = r'\\\|'
+    
+    bad_link = re.search(bad_link_pat, markdown)
+    bad_pipes = re.findall(bad_pipe_pat, markdown)
+    
+    return bad_link or len(bad_pipes) >= 2
+
+
 def detect_pcpp_html_elements(text: str):
     """Detects PCPP HTML elements in the provided text.
     
@@ -45,9 +58,15 @@ def detect_pcpp_html_elements(text: str):
     anon_links = soup.find_all('a', href=anon_re)
     iden_links = soup.find_all('a', href=iden_re)
     
+    anon_urls = []
+    iden_urls = []
+    
     # Grab the urls only
-    anon_urls = [a['href'] for a in anon_links]
-    iden_urls = [a['href'].replace('#view=', '') for a in iden_links]
+    if anon_links and len(anon_links) != 0:
+        anon_urls = [a['href'] for a in anon_links]
+        
+    if iden_links and len(iden_links) != 0:
+        iden_urls = [a['href'].replace('#view=', '') for a in iden_links]
     
     table_headers = soup.find_all(pcpp_table_header)
     pcpp_tables = []
@@ -108,11 +127,57 @@ def combine_iden_anon_urls(anon_urls: list, iden_urls: list):
         iden_urls (list): List of identifiable list urls.
         
     Returns:
-        Previous anonymous urls along with the anonymous urls of the
-        identifiable list urls (if it wasn't already in the list).
+        A tuple of previous anonymous urls along with the anonymous urls of the
+        identifiable list urls (if it wasn't already in the list) and a
+        list of identifiable urls with their anonymous versions.
     """
     
-    new_anon_urls = [pcpp_parser.get_anon_list_url(url) for url in iden_urls]
-    anon_urls += [url for url in new_anon_urls if url not in anon_urls]
+    new_anon_urls = [(url, pcpp_parser.get_anon_list_url(url)) for url in iden_urls]
+    anon_urls += [anon for _, anon in new_anon_urls if anon not in anon_urls]
     
-    return anon_urls
+    return anon_urls, new_anon_urls
+
+
+def count_table_types(tables):
+    table_count = len(tables)
+    valid_tables = 0
+    invalid_tables = 0
+    
+    if table_count != 0:
+        for table in tables:
+            if table.is_valid():
+                valid_tables += 1
+            else:
+                invalid_tables += 1
+
+    return table_count, valid_tables, invalid_tables
+    
+    
+def parse_submission(submission_html, submission_markdown):
+    rem_pcpp_urls = []
+    table_data = {}
+    
+    # Parse the submission's post
+    pcpp_elements = detect_pcpp_html_elements(submission_html)
+    found_bad_markdown = detect_escaped_markdown(submission_markdown)
+
+    # Convert identifiable links to anonymous links
+    # Combine with the anonymous too
+    all_pcpp_urls, iden_anon_list = combine_iden_anon_urls(pcpp_elements['anon'],
+                                                           pcpp_elements['identifiable'])
+
+    # If we found any list urls
+    if len(all_pcpp_urls) != 0:
+        # Tables can be non-existent, valid, or invalid
+        total_tables, valid_tables, invalid_tables = count_table_types(pcpp_elements['tables'])
+        
+        table_data = {'total': total_tables, 'valid': valid_tables,
+                      'invalid': invalid_tables, 'bad_markdown': found_bad_markdown}
+    
+        # Find what URLs don't have an accompanying table
+        rem_pcpp_urls = get_urls_with_no_table(all_pcpp_urls,
+                                               pcpp_elements['tables'])
+    
+    return rem_pcpp_urls, iden_anon_list, table_data
+
+
