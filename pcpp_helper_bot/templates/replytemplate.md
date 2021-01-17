@@ -1,6 +1,9 @@
-Hello, I noticed you posted a PC Part Picker list URL, but either the table is malformed or missing. I've created one below for you:
+Hello, I am the PC Part Picker Helper Bot!
 
-:table:
+:message:
+
+
+PC Part Picker will create the table for you if you click on the Reddit logo at the top of your list.
 
 ---
 Please don't reply directly to me, so that we can minimize spam! 
