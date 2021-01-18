@@ -79,36 +79,72 @@ class PCPPHelperBot:
         
         # Stream in new submissions from the subreddit
         for submission in subreddit.stream.submissions():
-            flair = submission.link_flair_text
+            unpaired_urls, iden_anon_urls, table_data = self.read_submission(submission)
             
-            if self._already_replied(submission.id):
-                self.logger.info('Already replied to this submission.')
+            # If there are missing/broken tables or identifiable links
+            if len(unpaired_urls) != 0 or len(iden_anon_urls) != 0:
+                self.logger.info('FOUND TABLELESS OR IDENTIFIABLE URLS')
+                self.logger.info(f'SUBMISSION TEXT: {submission.selftext}')
                 
-            # Only look at text submissions and with the appropriate flairs
-            elif flair in self.pertinent_flairs and submission.is_self:
-                self.logger.info(f'CHECKING SUBMISSION: {submission.url}')
+                self.reply(submission, unpaired_urls, iden_anon_urls, table_data)
+
+    def read_submission(self, submission: praw.reddit.Submission):
+        """Reads a submission from Reddit.
+        
+        Args:
+            submission ('obj': praw.reddit.Submission): A PRAW Submission object.
+        
+        Returns:
+            (urls without tables, (identifiable, anonymous) pair list,
+            {'total', 'valid', 'invalid', 'bad_markdown'} dict  of table
+            data).
+        """
+        
+        flair = submission.link_flair_text
+        tableless_urls = []
+        iden_anon_urls = []
+        table_data = {}
+    
+        if self._already_replied(submission.id):
+            self.logger.info('Already replied to this submission.')
+    
+        # Only look at text submissions and with the appropriate flairs
+        elif flair in self.pertinent_flairs and submission.is_self:
+            self.logger.info(f'CHECKING SUBMISSION: {submission.url}')
+        
+            # Parse pertinent info from the submission
+            tableless_urls, iden_anon_urls, table_data \
+                = parse_submission(submission.selftext_html, submission.selftext, self.pcpp_parser)
                 
-                # Parse pertinent info from the submission
-                tableless_urls, iden_anon_urls, table_data \
-                    = parse_submission(submission.selftext_html, submission.selftext, self.pcpp_parser)
-                
-                # If there are missing/broken tables or identifiable links
-                if len(tableless_urls) != 0 or len(iden_anon_urls) != 0:
-                    self.logger.info('FOUND TABLELESS OR IDENTIFIABLE URLS')
-                    self.logger.info(f'SUBMISSION TEXT: {submission.selftext}')
-                    
-                    # Create the reply with this information
-                    reply_message = self.make_reply(tableless_urls,
-                                                     iden_anon_urls,
-                                                     table_data)
-                    
-                    if self.is_live:
-                        # Post the reply!
-                        reply = submission.reply(reply_message)
-                        self._save_reply_db(reply, submission, table_data, iden_anon_urls, tableless_urls)
-                    else:
-                        print(reply_message)
-                    
+        return tableless_urls, iden_anon_urls, table_data
+        
+    def reply(self, submission, unpaired_urls, iden_anon_urls, table_data):
+        """Replies to a Reddit submission.
+        
+        Args:
+            submission (`obj`: praw.Reddit.Submission): PRAW Submission object.
+            unpaired_urls (list): urls without an accompanying table.
+            iden_anon_urls (list): Pairs of identifiable, anonymous list urls.
+            table_data (dict): Holds information about table data in submission.
+            
+        Returns:
+            Reply message string if NOT live, otherwise PRAW.reddit.Comment object.
+        """
+    
+        # Create the reply with this information
+        reply_message = self.make_reply(unpaired_urls,
+                                        iden_anon_urls,
+                                        table_data)
+    
+        # Only if the bot is 'live' on Reddit or not
+        if self.is_live:
+            # Post the reply!
+            reply = submission.reply(reply_message)
+            self._save_reply_db(reply, submission, table_data, iden_anon_urls, unpaired_urls)
+            return reply
+        else:
+            return reply_message
+
     def make_reply(self, tableless_urls: list, iden_anon_urls: list, table_data: dict):
         """Creates the full reply message.
         
