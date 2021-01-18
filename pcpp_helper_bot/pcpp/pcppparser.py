@@ -132,15 +132,15 @@ class PCPPParser:
         """
         
         for row in table_body.find_all('tr'):
-            data = self._parse_row(row)
             
             row_classes = row.get('class')
             if row_classes:
-                if 'tr__product' in row_classes and len(data['name']) != 0:
-    
-                    # TODO: Check if the data was empty or bad
-                    component = Part(**data)
-                    self.parts_list.append(component)
+                if 'tr__product' in row_classes:
+                    data = self._parse_row(row)
+                    
+                    if len(data['name']) != 0:
+                        component = Part(**data)
+                        self.parts_list.append(component)
                 
                 elif 'tr__total--final' in row_classes:
                     # Text will be: 'Total: <currency><price>
