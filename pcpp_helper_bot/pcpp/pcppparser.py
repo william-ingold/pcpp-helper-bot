@@ -2,6 +2,7 @@ import requests
 import logging
 import re
 import traceback
+from datetime import datetime
 
 from bs4 import BeautifulSoup
 
@@ -20,8 +21,13 @@ class PCPPParser:
         parts_list (list(Part)): List of parts from the PC Part Picker list.
     """
     
-    def __init__(self):
+    def __init__(self, log_file_handler):
         """Initializes setup variables."""
+
+        self.logger = logging.getLogger('PCPPParser')
+        self.logger.addHandler(log_file_handler)
+        now_str = datetime.now().strftime('%H:%M:%S')
+        self.logger.info(f'STARTING {now_str}')
         
         self.pcpp_base_url = 'https://pcpartpicker.com'
         self.url = ''
@@ -53,14 +59,14 @@ class PCPPParser:
             response = requests.get(self.url)
             
             if response.status_code == 200:
-                logging.info('Request status code was successful')
+                self.logger.info('Request status code was successful')
                 return response.text
             else:
                 logging.error(
                     f'Could not resolve PC Part Picker URL. Status code: {response.status_code}, URL: {self.url}')
                 raise AttributeError('PC Part Picker URL or Page malformed', self.url)
         except:
-            logging.error(f'Request error: {traceback.print_exc()}')
+            self.logger.error(f'PCPP PARSER: Request error: {traceback.print_exc()}')
     
     def parse_page(self, html_doc):
         """Parses the provided html_doc for its component list.
