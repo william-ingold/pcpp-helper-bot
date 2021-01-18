@@ -102,7 +102,7 @@ class PCPPHelperBot:
                     # reply = submission.reply(reply_message)
                     # self._log_reply_db(reply, submission, table_data, iden_anon_urls, tableless_urls)
                     
-    def _make_reply(self, tableless_urls: list, iden_anon_urls: list, table_data: dict):
+    def make_reply(self, tableless_urls: list, iden_anon_urls: list, table_data: dict):
         """Creates the full reply message.
         
         Args:
@@ -190,15 +190,16 @@ class PCPPHelperBot:
             # Put the table(s) together
             all_table_markdown = '\n\n'.join(all_table_markdown)
             
+            lists_without_tables = abs(table_data['total'] - len(urls))
             # Check which issue(s) occurred (at least one will match)
-            if table_data['total'] == 0:
+            if table_data['total'] == 0 or lists_without_tables != 0:
                 issues.append('a missing table')
             if table_data['invalid'] != 0:
                 issues.append('a broken/partial table')
             if table_data['bad_markdown']:
                 issues.append('escaped markdown')
             
-            issues_markdown = ','.join(issues)
+            issues_markdown = ', '.join(issues)
             
             # Input the message data into the template
             table_message = self.TABLE_TEMPLATE.replace(':issues:', issues_markdown)
@@ -225,7 +226,7 @@ class PCPPHelperBot:
             # Create a bullet point showing the anonymous list url for
             # each identifiable list url found.
             for iden_url, anon_url in iden_anon_urls:
-                list_items.append(f'* [{iden_url}] &#8594; [{anon_url}]')
+                list_items.append(f'* {iden_url} &#8594; {anon_url}')
             
             list_markdown = '\n'.join(list_items)
             
