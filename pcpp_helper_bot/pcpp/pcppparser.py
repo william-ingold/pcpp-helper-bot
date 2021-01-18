@@ -67,6 +67,10 @@ class PCPPParser:
         
         Args:
             html_doc (str): HTML document with component list.
+            
+        Returns:
+            A tuple (List of Part objects, Total cost) from the PC Part Picker
+            list.
         """
         
         # Reset data
