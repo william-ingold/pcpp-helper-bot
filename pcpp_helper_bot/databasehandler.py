@@ -74,7 +74,7 @@ class DatabaseHandler:
                             reply_id,
                             posted_time,
                             submission_id,
-                            submission_flair
+                            submission_flair,
                             submission_url,
                             submission_time,
                             list_url,
@@ -85,7 +85,7 @@ class DatabaseHandler:
                             tables_made
                         )
                         VALUES
-                            (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                            (%s,FROM_UNIXTIME(%s),%s,%s,%s,FROM_UNIXTIME(%s),%s,%s,%s,%s,%s,%s)
                         """
         
         values = (reply_id, posted_time, submission_id,
@@ -95,6 +95,7 @@ class DatabaseHandler:
         
         with self.conn.cursor() as cursor:
             cursor.execute(insert_reply, values)
+            self.conn.commit()
 
     def select_reply(self, submission_id: int):
         """Search the database for replies with this submission id.
