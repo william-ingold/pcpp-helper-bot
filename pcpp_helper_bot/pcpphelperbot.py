@@ -19,16 +19,20 @@ class PCPPHelperBot:
     not, or it is malformed, a reply containing the table will be posted.
     """
     
-    def __init__(self, logger: logging.Logger):
+    def __init__(self, log_file_handler, live=False):
+        self.is_live = live
+        
         # Logger setup
-        self.logger = logger
+        self.logger = logging.getLogger('PCPPHelperBot')
+        self.logger.addHandler(log_file_handler)
         now_str = datetime.now().strftime('%H:%M:%S')
         self.logger.info(f'STARTING {now_str}')
         
         # Database setup
-        self.db_handler = DatabaseHandler()
-        self.db_handler.connect()
-        self.db_handler.create_table()
+        if self.is_live:
+            self.db_handler = DatabaseHandler()
+            self.db_handler.connect()
+            self.db_handler.create_table()
 
         # Retrieve environment vars for secret data
         username = os.environ.get('REDDIT_USERNAME')
@@ -49,7 +53,7 @@ class PCPPHelperBot:
         self.pertinent_flairs = ['Build Complete', 'Build Upgrade',
                                  'Build Help', 'Build Ready', None]
         
-        self.pcpp_parser = PCPPParser()
+        self.pcpp_parser = PCPPParser(log_file_handler)
         self.table_creator = TableCreator()
         self.MAX_TABLES = 2
         
@@ -86,7 +90,7 @@ class PCPPHelperBot:
                 
                 # Parse pertinent info from the submission
                 tableless_urls, iden_anon_urls, table_data \
-                    = parse_submission(submission.selftext_html, submission.selftext)
+                    = parse_submission(submission.selftext_html, submission.selftext, self.pcpp_parser)
                 
                 # If there are missing/broken tables or identifiable links
                 if len(tableless_urls) != 0 or len(iden_anon_urls) != 0:
@@ -94,13 +98,16 @@ class PCPPHelperBot:
                     self.logger.info(f'SUBMISSION TEXT: {submission.selftext}')
                     
                     # Create the reply with this information
-                    reply_message = self._make_reply(tableless_urls,
+                    reply_message = self.make_reply(tableless_urls,
                                                      iden_anon_urls,
                                                      table_data)
                     
-                    # Post the reply!
-                    # reply = submission.reply(reply_message)
-                    # self._log_reply_db(reply, submission, table_data, iden_anon_urls, tableless_urls)
+                    if self.is_live:
+                        # Post the reply!
+                        reply = submission.reply(reply_message)
+                        self._save_reply_db(reply, submission, table_data, iden_anon_urls, tableless_urls)
+                    else:
+                        print(reply_message)
                     
     def make_reply(self, tableless_urls: list, iden_anon_urls: list, table_data: dict):
         """Creates the full reply message.
@@ -188,7 +195,7 @@ class PCPPHelperBot:
                 all_table_markdown.append(table_markdown)
             
             # Put the table(s) together
-            all_table_markdown = '\n\n'.join(all_table_markdown)
+            all_table_markdown = '\n\n\n'.join(all_table_markdown)
             
             lists_without_tables = abs(table_data['total'] - len(urls))
             # Check which issue(s) occurred (at least one will match)
@@ -235,12 +242,12 @@ class PCPPHelperBot:
         
         return iden_markdown
 
-    def _log_reply_db(self, reply: praw.reddit.Comment,
+    def _save_reply_db(self, reply: praw.reddit.Comment,
                       submission: praw.reddit.Submission,
                       table_data: dict,
                       iden_anon_urls: list,
                       urls: list):
-        """Log the reply data into the database.
+        """Save the reply data into the database.
         
         Args:
             reply (PRAW.Reddit.Comment): The reply left by the bot
@@ -272,7 +279,8 @@ class PCPPHelperBot:
         
     def __del__(self):
         """Cleanup."""
-        self.db_handler.disconnect()
+        if self.is_live:
+            self.db_handler.disconnect()
         
     def _already_replied(self, submission_id: str):
         """Check if the bot has replied already to this submission."""
