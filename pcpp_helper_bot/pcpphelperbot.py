@@ -1,12 +1,13 @@
 import os
-import re
 import logging
+from datetime import datetime
 
 import praw
 
 from tablecreator import TableCreator
 from postparsing import parse_submission
 from pcpp.pcppparser import PCPPParser
+from databasehandler import DatabaseHandler
 
 
 class PCPPHelperBot:
@@ -18,13 +19,17 @@ class PCPPHelperBot:
     not, or it is malformed, a reply containing the table will be posted.
     """
     
-    def __init__(self, all_log: logging.Logger, replied_log: logging.Logger):
-        self.replied_log = replied_log
-        self.all_log = all_log
+    def __init__(self, logger: logging.Logger):
+        # Logger setup
+        self.logger = logger
+        now_str = datetime.now().strftime('%H:%M:%S')
+        self.logger.info(f'STARTING {now_str}')
         
-        self.replied_log.info("STARTING")
-        self.all_log.info("STARTING")
-        
+        # Database setup
+        self.db_handler = DatabaseHandler()
+        self.db_handler.connect()
+        self.db_handler.create_table()
+
         # Retrieve environment vars for secret data
         username = os.environ.get('REDDIT_USERNAME')
         password = os.environ.get('REDDIT_PASSWORD')
@@ -41,13 +46,14 @@ class PCPPHelperBot:
         
         # Only look at submissions with one of these flairs
         # TODO: Are these the best submission flairs to use?
-        self.pertinent_flairs = ["Build Complete", "Build Upgrade",
-                                 "Build Help", "Build Ready", None]
+        self.pertinent_flairs = ['Build Complete', 'Build Upgrade',
+                                 'Build Help', 'Build Ready', None]
         
         self.pcpp_parser = PCPPParser()
         self.table_creator = TableCreator()
         self.MAX_TABLES = 2
         
+        # Read in the templates
         with open('./templates/replytemplate.md', 'r') as template:
             self.REPLY_TEMPLATE = template.read()
         
@@ -74,8 +80,7 @@ class PCPPHelperBot:
             
             # Only look at text submissions and with the appropriate flairs
             if flair in self.pertinent_flairs and submission.is_self:
-                self.all_log.info(f"SUBMISSION: {submission.title} AT {submission.url}")
-                self.all_log.info(f"SUBMISSION TEXT: {submission.selftext}")
+                self.logger.info(f'CHECKING SUBMISSION: {submission.url}')
                 
                 # Parse pertinent info from the submission
                 tableless_urls, iden_anon_urls, table_data \
@@ -83,14 +88,18 @@ class PCPPHelperBot:
                 
                 # If there are missing/broken tables or identifiable links
                 if len(tableless_urls) != 0 or len(iden_anon_urls) != 0:
+                    self.logger.info('FOUND TABLELESS OR IDENTIFIABLE URLS')
+                    self.logger.info(f'SUBMISSION TEXT: {submission.selftext}')
+                    
                     # Create the reply with this information
                     reply_message = self._make_reply(tableless_urls,
                                                      iden_anon_urls,
                                                      table_data)
-                    print(reply_message)
+                    
                     # Post the reply!
-                    # submission.reply(reply_message)
-    
+                    # reply = submission.reply(reply_message)
+                    # self._log_reply_db(reply, submission, table_data, iden_anon_urls, tableless_urls)
+                    
     def _make_reply(self, tableless_urls, iden_anon_urls, table_data):
         """Creates the full reply message.
         
@@ -108,8 +117,19 @@ class PCPPHelperBot:
         table_markdown = self._make_table_markdown(tableless_urls, table_data)
         iden_markdown = self._make_identifiable_markdown(iden_anon_urls)
         
+        if len(table_markdown) == 0 and len(tableless_urls) != 0:
+            self.logger.error('Failed to make table markdown for urls: {tableless_urls}')
+            
+        if len(iden_anon_urls) != 0 and len(iden_markdown) == 0:
+            self.logger.error(f'Failed to make identifiable markdown for urls: {iden_anon_urls}')
+        
         reply_message = self._put_message_together(table_markdown,
                                                    iden_markdown)
+        
+        if len(reply_message) == 0:
+            self.logger.error('Failed to create a message.')
+        else:
+            self.logger.info(f'Reply: {reply_message}')
         
         return reply_message
     
@@ -125,13 +145,13 @@ class PCPPHelperBot:
             A string containing the combined reply message.
         """
         
-        reply_message = None
+        reply_message = ''
         message_markdown = []
         
         if len(table_markdown) != 0:
             message_markdown.append(table_markdown)
         
-        if iden_markdown:
+        if len(iden_markdown) != 0:
             message_markdown.append(iden_markdown)
         
         if len(message_markdown) != 0:
@@ -170,11 +190,11 @@ class PCPPHelperBot:
             
             # Check which issue(s) occurred (at least one will match)
             if table_data['total'] == 0:
-                issues.append("a missing table")
+                issues.append('a missing table')
             if table_data['invalid'] != 0:
-                issues.append("a broken/partial table")
+                issues.append('a broken/partial table')
             if table_data['bad_markdown']:
-                issues.append("escaped markdown")
+                issues.append('escaped markdown')
             
             issues_markdown = ','.join(issues)
             
@@ -211,3 +231,34 @@ class PCPPHelperBot:
             iden_markdown = self.IDENTIFIABLE_TEMPLATE.replace(':urls:', list_markdown)
         
         return iden_markdown
+
+    def _log_reply_db(self, reply, submission, table_data, iden_anon_urls, urls):
+        """Log the reply data into the database.
+        
+        Args:
+            reply (PRAW.Reddit.Comment): The reply left by the bot
+            submission (PRAW.Reddit.Submission): Submission the bot replied to
+            table_data (dict): Holds data about the tables
+            iden_anon_urls (list): List of identifiable links
+            urls (list): List of the PCPP urls I made tables for
+        """
+        
+        flair = submission.link_flair_text
+        had_identifiable = len(iden_anon_urls) != 0
+        missing_table = len(table_data['total']) == 0
+    
+        self.db_handler.insert_reply(reply.id, reply.created_utc,
+                                     submission.id, flair,
+                                     submission.url,
+                                     submission.created_utc,
+                                     str(urls),
+                                     had_identifiable,
+                                     table_data['bad_markdown'],
+                                     table_data['invalid'],
+                                     missing_table,
+                                     len(urls)
+                                     )
+        
+    def __del__(self):
+        """Cleanup."""
+        self.db_handler.disconnect()
