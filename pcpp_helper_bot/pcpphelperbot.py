@@ -277,6 +277,6 @@ class PCPPHelperBot:
         """Check if the bot has replied already to this submission."""
         
         id_as_int = int(submission_id, 36)
-        reply = self.db_handler.select_replies(id_as_int)
+        reply = self.db_handler.select_reply(id_as_int)
         
         return reply is not None
