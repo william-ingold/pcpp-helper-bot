@@ -136,8 +136,8 @@ class PCPPParser:
             
             row_classes = row.get('class')
             if row_classes:
-                if 'tr__product' in row_classes:
-                    
+                if 'tr__product' in row_classes and len(data['name']) != 0:
+    
                     # TODO: Check if the data was empty or bad
                     component = Part(**data)
                     self.parts_list.append(component)
@@ -177,10 +177,22 @@ class PCPPParser:
                 
                 # Get the name. Always a link, since it is within PCPartPicker
                 if col_name == 'name':
-                    part_name = col.a.text
-                    part_url = col.a.get('href')
-                    data['name'] = part_name.strip()
-                    data['url'] = self.pcpp_base_url + part_url
+                    # Remove any info about parts taken from parametric filters
+                    parametric = col.find('p', class_='p__parametric')
+                    para_list = col.find('ul', class_='ul__parametric--parts')
+                    
+                    if parametric:
+                        parametric.decompose()
+                        
+                    if para_list:
+                        para_list.decompose()
+                        
+                    # Grab and cleanup part name, if there is one
+                    if col.a:
+                        part_name = col.a.text
+                        part_url = col.a.get('href')
+                        data['name'] = part_name.strip()
+                        data['url'] = self.pcpp_base_url + part_url
                 
                 # Get the price. Only a link if the vendor is specified
                 elif col_name == 'price' and 'td--empty' not in col_classes:
