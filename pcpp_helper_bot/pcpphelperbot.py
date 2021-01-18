@@ -76,10 +76,12 @@ class PCPPHelperBot:
         # Stream in new submissions from the subreddit
         for submission in subreddit.stream.submissions():
             flair = submission.link_flair_text
-            # TODO: Check if replied already to this post
             
+            if self._already_replied(submission.id):
+                self.logger.info('Already replied to this submission.')
+                
             # Only look at text submissions and with the appropriate flairs
-            if flair in self.pertinent_flairs and submission.is_self:
+            elif flair in self.pertinent_flairs and submission.is_self:
                 self.logger.info(f'CHECKING SUBMISSION: {submission.url}')
                 
                 # Parse pertinent info from the submission
@@ -100,7 +102,7 @@ class PCPPHelperBot:
                     # reply = submission.reply(reply_message)
                     # self._log_reply_db(reply, submission, table_data, iden_anon_urls, tableless_urls)
                     
-    def _make_reply(self, tableless_urls, iden_anon_urls, table_data):
+    def _make_reply(self, tableless_urls: list, iden_anon_urls: list, table_data: dict):
         """Creates the full reply message.
         
         Args:
@@ -133,7 +135,7 @@ class PCPPHelperBot:
         
         return reply_message
     
-    def _put_message_together(self, table_markdown, iden_markdown):
+    def _put_message_together(self, table_markdown: str, iden_markdown: str):
         """Puts together the variable data into a message.
         
         Args:
@@ -160,7 +162,7 @@ class PCPPHelperBot:
         
         return reply_message
     
-    def _make_table_markdown(self, urls, table_data):
+    def _make_table_markdown(self, urls: list, table_data: dict):
         """Put together the table markdown. This could be up to self.MAX_TABLES.
         
         Args:
@@ -204,7 +206,7 @@ class PCPPHelperBot:
         
         return table_message
     
-    def _make_identifiable_markdown(self, iden_anon_urls):
+    def _make_identifiable_markdown(self, iden_anon_urls: list):
         """Creates the message for when identifiable list urls are found.
         
         Args:
@@ -232,7 +234,11 @@ class PCPPHelperBot:
         
         return iden_markdown
 
-    def _log_reply_db(self, reply, submission, table_data, iden_anon_urls, urls):
+    def _log_reply_db(self, reply: praw.reddit.Comment,
+                      submission: praw.reddit.Submission,
+                      table_data: dict,
+                      iden_anon_urls: list,
+                      urls: list):
         """Log the reply data into the database.
         
         Args:
@@ -246,9 +252,13 @@ class PCPPHelperBot:
         flair = submission.link_flair_text
         had_identifiable = len(iden_anon_urls) != 0
         missing_table = len(table_data['total']) == 0
+        
+        # Reddit id's are in base 36
+        reply_id = int(reply.id, 36)
+        submission_id = int(submission.id, 36)
     
-        self.db_handler.insert_reply(reply.id, reply.created_utc,
-                                     submission.id, flair,
+        self.db_handler.insert_reply(reply_id, reply.created_utc,
+                                     submission_id, flair,
                                      submission.url,
                                      submission.created_utc,
                                      str(urls),
@@ -262,3 +272,11 @@ class PCPPHelperBot:
     def __del__(self):
         """Cleanup."""
         self.db_handler.disconnect()
+        
+    def _already_replied(self, submission_id: str):
+        """Check if the bot has replied already to this submission."""
+        
+        id_as_int = int(submission_id, 36)
+        reply = self.db_handler.select_replies(id_as_int)
+        
+        return reply is not None
