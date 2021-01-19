@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 
 import praw
+import mysql.connector.errors as mysql_errors
 
 from tablecreator import TableCreator
 from postparsing import parse_submission
@@ -23,7 +24,11 @@ class PCPPHelperBot:
         self.is_live = live
         
         # Logger setup
-        self.logger = logging.getLogger('PCPPHelperBot')
+        if self.is_live:
+            self.logger = logging.getLogger('PCPPHelperBot')
+        else:
+            self.logger = logging.getLogger('PCPPHelperBot-DEBUG')
+            
         self.logger.addHandler(log_file_handler)
         now_str = datetime.now().strftime('%H:%M:%S')
         self.logger.info(f'STARTING {now_str}')
@@ -31,8 +36,11 @@ class PCPPHelperBot:
         # Database setup
         if self.is_live:
             self.db_handler = DatabaseHandler()
-            self.db_handler.connect()
-            self.db_handler.create_table()
+        else:
+            self.db_handler = DatabaseHandler(debug=True)
+            
+        self.db_handler.connect()
+        self.db_handler.create_table()
 
         # Retrieve environment vars for secret data
         username = os.environ.get('REDDIT_USERNAME')
@@ -103,7 +111,7 @@ class PCPPHelperBot:
         flair = submission.link_flair_text
         tableless_urls = []
         iden_anon_urls = []
-        table_data = {}
+        table_data = {'total': 0, 'valid': 0, 'invalid': 0, 'bad_markdown': False}
     
         if self._already_replied(submission.id):
             self.logger.info('Already replied to this submission.')
@@ -132,7 +140,7 @@ class PCPPHelperBot:
         """
     
         # Create the reply with this information
-        reply_message = self.make_reply(unpaired_urls,
+        reply_message = self._make_reply(unpaired_urls,
                                         iden_anon_urls,
                                         table_data)
     
@@ -145,7 +153,7 @@ class PCPPHelperBot:
         else:
             return reply_message
 
-    def make_reply(self, tableless_urls: list, iden_anon_urls: list, table_data: dict):
+    def _make_reply(self, tableless_urls: list, iden_anon_urls: list, table_data: dict):
         """Creates the full reply message.
         
         Args:
@@ -227,7 +235,7 @@ class PCPPHelperBot:
             for pcpp_url in urls:
                 list_html = self.pcpp_parser.request_page_data(pcpp_url)
                 parts_list, total = self.pcpp_parser.parse_page(list_html)
-                table_markdown = self.table_creator.create_markup_table(pcpp_url, parts_list, total)
+                table_markdown = self.table_creator.create_markdown_table(pcpp_url, parts_list, total)
                 all_table_markdown.append(table_markdown)
             
             # Put the table(s) together
@@ -269,6 +277,7 @@ class PCPPHelperBot:
             # Create a bullet point showing the anonymous list url for
             # each identifiable list url found.
             for iden_url, anon_url in iden_anon_urls:
+                # identifiable -> anonymous
                 list_items.append(f'* {iden_url} &#8594; {anon_url}')
             
             list_markdown = '\n'.join(list_items)
@@ -301,23 +310,30 @@ class PCPPHelperBot:
         reply_id = int(reply.id, 36)
         submission_id = int(submission.id, 36)
     
-        self.db_handler.insert_reply(reply_id, reply.created_utc,
-                                     submission_id, flair,
-                                     submission.url,
-                                     submission.created_utc,
-                                     str(urls),
-                                     had_identifiable,
-                                     table_data['bad_markdown'],
-                                     table_data['invalid'],
-                                     missing_table,
-                                     len(urls)
-                                     )
+        try:
+            self.db_handler.insert_reply(reply_id, reply.created_utc,
+                                         submission_id, flair,
+                                         submission.url,
+                                         submission.created_utc,
+                                         str(urls),
+                                         had_identifiable,
+                                         table_data['bad_markdown'],
+                                         table_data['invalid'],
+                                         missing_table,
+                                         len(urls)
+                                         )
+        except mysql_errors.IntegrityError as e:
+            self.logger.error('MySql insertion error: %s', e.msg)
         
     def __del__(self):
         """Cleanup."""
-        if self.is_live:
-            self.db_handler.disconnect()
         
+        # Want to cleanup the table if just testing.
+        if not self.is_live:
+            self.db_handler.clear_table()
+
+        self.db_handler.disconnect()
+
     def _already_replied(self, submission_id: str):
         """Check if the bot has replied already to this submission."""
         
