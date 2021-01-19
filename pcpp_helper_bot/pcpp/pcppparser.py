@@ -65,8 +65,8 @@ class PCPPParser:
                 logging.error(
                     f'Could not resolve PC Part Picker URL. Status code: {response.status_code}, URL: {self.url}')
                 raise AttributeError('PC Part Picker URL or Page malformed', self.url)
-        except:
-            self.logger.error(f'PCPP PARSER: Request error: {traceback.print_exc()}')
+        except Exception as e:
+            self.logger.error('PCPP PARSER: Request error:', exc_info=True)
     
     def parse_page(self, html_doc):
         """Parses the provided html_doc for its component list.
