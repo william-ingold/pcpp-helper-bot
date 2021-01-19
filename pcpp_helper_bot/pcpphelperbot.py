@@ -365,8 +365,8 @@ class PCPPHelperBot:
             if isinstance(item, Message):
                 author = item.author
                 
-                # Check if the messager is a moderator of r/buildapc
-                if author.is_mod and 'buildapc' in author.moderated():
+                # Check if the messenger is a moderator of r/buildapc
+                if not author.is_suspended and author.is_mod and 'buildapc' in author.moderated():
                     subject = item.subject
                     
                     # Did they tell me to stop?
