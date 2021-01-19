@@ -1,4 +1,4 @@
-Hello, I am the PC Part Picker Helper Bot!
+Hello, I am the [PC Part Picker](https://pcpartpicker.com) Helper Bot!
 
 :message:
 
