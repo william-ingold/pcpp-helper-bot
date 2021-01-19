@@ -24,7 +24,7 @@ Type|Item|Price
 
 
 class TableCreator:
-    """Create a Markup table holding the provided component list.
+    """Create a Markdown table holding the provided component list.
     
     Yes...I could've just used the markup table provided by PC Part Picker,
     but wanted to parse the table anyhow, plus it may provide information
@@ -39,8 +39,8 @@ class TableCreator:
         self.markup = ""
         self.POST_AFF_URLS = False
 
-    def create_markup_table(self, url: str, parts_list: List[Part], total: str):
-        """Creates a markup table from the provided information.
+    def create_markdown_table(self, url: str, parts_list: List[Part], total: str):
+        """Creates a markdown table from the provided information.
         
         Args:
             url (str): The URL to the PCPartPicker list.
@@ -65,15 +65,15 @@ class TableCreator:
     
         body = ""
         for part in parts_list:
-            body += self._create_markup_part_row(part) + "\n"
+            body += self._create_markdown_part_row(part) + "\n"
     
-        footer = self._create_markup_footer(total)
+        footer = self._create_markdown_footer(total)
     
         self.markup = url_link + headers + body + footer
         return self.markup
 
-    def _create_markup_part_row(self, part: Part):
-        """Creates the markup for a single component.
+    def _create_markdown_part_row(self, part: Part):
+        """Creates the markdown for a single component.
         
         Args:
             part (:obj:`Part`): A single Part object.
@@ -104,8 +104,8 @@ class TableCreator:
         row = f" {component} | {item} | {price} {vendor}"
         return row
         
-    def _create_markup_footer(self, total):
-        """Creates the markup for the footer section with the date and total.
+    def _create_markdown_footer(self, total):
+        """Creates the markdown for the footer section with the date and total.
         
         Returns:
             | *Prices include shipping, taxes, rebates, and discounts* |
