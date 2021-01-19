@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 
 import praw
+from praw.models import Message
 import mysql.connector.errors as mysql_errors
 
 from tablecreator import TableCreator
@@ -95,6 +96,11 @@ class PCPPHelperBot:
                 self.logger.info(f'SUBMISSION TEXT: {submission.selftext}')
                 
                 self.reply(submission, unpaired_urls, iden_anon_urls, table_data)
+
+            should_stop, reason = self._check_inbox_for_stop()
+            if should_stop:
+                self.logger.info(f'STOPPING BY REQUEST. REASON: {reason}')
+                break
 
     def read_submission(self, submission: praw.reddit.Submission):
         """Reads a submission from Reddit.
@@ -341,3 +347,32 @@ class PCPPHelperBot:
         reply = self.db_handler.select_reply(id_as_int)
         
         return reply is not None
+    
+    def _check_inbox_for_stop(self):
+        """Checks if a moderator messaged the bot to stop running.
+        The subject must be 'stop', and the body of the message
+        contains an optional reason for stopping the bot.
+        
+        Returns:
+            (boolean on if to stop, a string containing the reason).
+        """
+        
+        should_stop = False
+        reason = ''
+        
+        for item in self.reddit.inbox.unread():
+            # Check if it is a message, not a mention or something else
+            if isinstance(item, Message):
+                author = item.author
+                
+                # Check if the messager is a moderator of r/buildapc
+                if author.is_mod and 'buildapc' in author.moderated():
+                    subject = item.subject
+                    
+                    # Did they tell me to stop?
+                    if 'stop' in subject.lower():
+                        reason = item.body
+                        should_stop = True
+                        item.mark_read()
+                        
+        return should_stop, reason
