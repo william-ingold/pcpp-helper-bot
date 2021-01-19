@@ -93,12 +93,11 @@ class TableCreator:
         # Vendor is 'Purchased', <Vendor name> with a url, or empty
         vendor = part.vendor
         
-        if len(part.vendor_aff_url) != 0:
+        if len(part.vendor_aff_url) != 0 and self.POST_AFF_URLS:
             # If you wanted to post the affiliate links.
             # But this causes moderation issues.
-            if self.POST_AFF_URLS:
                 vendor = f"@ [{part.vendor}]({part.vendor_aff_url})"
-            else:
+        elif len(vendor) != 0 and vendor != 'Purchased':
                 vendor = f"@ {part.vendor}"
 
         row = f" {component} | {item} | {price} {vendor}"
