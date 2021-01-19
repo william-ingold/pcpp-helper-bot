@@ -10,8 +10,13 @@ class DatabaseHandler:
     to submissions, but maybe some other data that may be useful for
     troubleshooting later."""
     
-    def __init__(self):
+    def __init__(self, debug: bool = False):
         self.conn = None
+        
+        if debug:
+            self.table = 'replies_debug'
+        else:
+            self.table = 'replies'
     
     def connect(self):
         try:
@@ -33,11 +38,11 @@ class DatabaseHandler:
         
         self.conn = None
     
-    def create_table(self):
+    def create_table(self, debug: bool = False):
         # Replies table will hold the bot's replies and pertinent information
         
-        create_replies_table = """
-                                CREATE TABLE IF NOT EXISTS replies(
+        create_replies_table = f"""
+                                CREATE TABLE IF NOT EXISTS {self.table}(
                                     reply_id BIGINT PRIMARY KEY,
                                     posted_time DATETIME,
                                     submission_id BIGINT,
@@ -69,8 +74,9 @@ class DatabaseHandler:
                      bad_html: int,
                      missing_table: bool,
                      tables_made: int):
-        insert_reply = """
-                        INSERT INTO replies (
+        
+        insert_reply = f"""
+                        INSERT INTO {self.table} (
                             reply_id,
                             posted_time,
                             submission_id,
@@ -107,10 +113,10 @@ class DatabaseHandler:
             A match, or None.
         """
         
-        query = """SELECT
+        query = f"""SELECT
                     reply_id
                 FROM
-                    replies
+                    {self.table}
                 WHERE
                     submission_id = "%s"
                 """ % submission_id
@@ -118,3 +124,12 @@ class DatabaseHandler:
         with self.conn.cursor() as cursor:
             cursor.execute(query)
             return cursor.fetchone()
+        
+    def clear_table(self):
+        """Clears the replies table. Mostly for debugging. """
+        
+        query = f"TRUNCATE TABLE {self.table}"
+        
+        with self.conn.cursor() as cursor:
+            cursor.execute(query)
+            self.conn.commit()
