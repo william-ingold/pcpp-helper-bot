@@ -184,7 +184,7 @@ def parse_submission(submission_html: str, submission_markdown: str, pcpp_parser
     """
     
     rem_pcpp_urls = []
-    table_data = {}
+    table_data = {'total': 0, 'invalid': 0, 'valid': 0, 'bad_markdown': False}
     
     # Parse the submission's post
     pcpp_elements = detect_pcpp_html_elements(submission_html)

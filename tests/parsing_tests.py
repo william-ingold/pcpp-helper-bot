@@ -408,6 +408,19 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(0, table['invalid'])
         self.assertEqual(1, table['valid'])
         self.assertFalse(table['bad_markdown'])
+        
+    def test_parse_submission_no_elements(self):
+        fp = '../tests/test-posts/no_elements.htm'
+        text = read_file(fp)
+        pcpp = PCPPParser(self.f_handler)
+        
+        urls, iden_anon, table = parse_submission(text, '', pcpp)
+        self.assertEqual(0, len(urls))
+        self.assertEqual(0, len(iden_anon))
+        self.assertEqual(0, table['total'])
+        self.assertEqual(0, table['invalid'])
+        self.assertEqual(0, table['valid'])
+        self.assertFalse(table['bad_markdown'])
 
 
 if __name__ == '__main__':
