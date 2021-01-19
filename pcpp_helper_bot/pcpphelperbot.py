@@ -246,9 +246,9 @@ class PCPPHelperBot:
             if table_data['total'] == 0 or lists_without_tables != 0:
                 issues.append('a missing table')
             if table_data['invalid'] != 0:
-                issues.append('a broken/partial table')
+                issues.append('a broken or partial table')
             if table_data['bad_markdown']:
-                issues.append('escaped markdown')
+                issues.append('escaped or broken markdown')
             
             issues_markdown = ', '.join(issues)
             
