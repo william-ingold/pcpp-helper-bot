@@ -39,7 +39,7 @@ class PCPPHelperBot:
             self.db_handler = DatabaseHandler()
         else:
             self.db_handler = DatabaseHandler(debug=True)
-            
+        
         self.db_handler.connect()
         self.db_handler.create_table()
 
@@ -101,6 +101,8 @@ class PCPPHelperBot:
             if should_stop:
                 self.logger.info(f'STOPPING BY REQUEST. REASON: {reason}')
                 break
+                
+        self._cleanup_database()
 
     def read_submission(self, submission: praw.reddit.Submission):
         """Reads a submission from Reddit.
@@ -331,14 +333,16 @@ class PCPPHelperBot:
         except mysql_errors.IntegrityError as e:
             self.logger.error('MySql insertion error: %s', e.msg)
         
-    def __del__(self):
+    def _cleanup_database(self):
         """Cleanup."""
         
+        """
         # Want to cleanup the table if just testing.
         if not self.is_live:
             self.db_handler.clear_table()
 
         self.db_handler.disconnect()
+        """
 
     def _already_replied(self, submission_id: str):
         """Check if the bot has replied already to this submission."""
