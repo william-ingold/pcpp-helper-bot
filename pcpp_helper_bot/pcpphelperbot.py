@@ -336,13 +336,11 @@ class PCPPHelperBot:
     def _cleanup_database(self):
         """Cleanup."""
         
-        """
         # Want to cleanup the table if just testing.
         if not self.is_live:
             self.db_handler.clear_table()
 
         self.db_handler.disconnect()
-        """
 
     def _already_replied(self, submission_id: str):
         """Check if the bot has replied already to this submission."""
