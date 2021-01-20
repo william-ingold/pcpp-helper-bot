@@ -1,5 +1,5 @@
 # Post
-This is a test post. Here is an anonymous PCPP list url: https://pcpartpicker.com/list/ZqWwj2
+This is a test post. Here is an anonymous PCPP list url: https://pcpartpicker.com/list/3pK2Bc
 
 # Reply:
 Hello, I am the [PC Part Picker](https://pcpartpicker.com) Helper Bot!
