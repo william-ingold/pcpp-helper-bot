@@ -11,8 +11,7 @@ submissions with the following flairs will be inspected:
 * No flair
 
 If a submission has PC Part Picker list URL, but either no table or a malformed one, the bot will post a reply
-with a table with the list's components. The table is essentially the same as the one created by PC Part Picker,
-although it contains the affiliate links for vendors and items as well.
+with a table with the list's components.
 
 Additionally, if the bot detects an identifiable list URL, it will find the anonymous list URL and
 inform the user to use it instead.
