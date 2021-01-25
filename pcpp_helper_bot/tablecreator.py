@@ -117,11 +117,12 @@ class TableCreator:
         """
         
         price_info = "*Prices include shipping, taxes, rebates, and discounts*"
+        custom_note = "*^(&dagger;) denotes a custom part URL is available on PCPP*"
         total_price = f"**Total** | **{total}**"
         
         now = self.timezone.localize(datetime.now())
         now_str = now.strftime("%Y-%m-%d %H:%M:%S %Z%z")
         date_info = f"Generated at {now_str} | "
         
-        footer = f" {price_info} | \n | {total_price} | \n {date_info} |"
+        footer = f" {price_info} | {custom_note} \n | {total_price} | \n {date_info} |"
         return footer
