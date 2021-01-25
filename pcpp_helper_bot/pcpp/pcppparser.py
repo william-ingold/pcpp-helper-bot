@@ -226,7 +226,7 @@ class PCPPParser:
                 
                 # Get the vendor, or if its been purchased
                 elif col_name == 'where' and 'td--empty' not in col_classes:
-                    if col.text == 'Purchased':
+                    if 'td__where--purchased' in col_classes:
                         data['vendor'] = 'Purchased'
                     elif col.find('a'):
                         vendor_aff_url = col.a.get('href')
