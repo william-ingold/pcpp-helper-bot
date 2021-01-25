@@ -186,6 +186,7 @@ class PCPPParser:
                     # Remove any info about parts taken from parametric filters
                     parametric = col.find('p', class_='p__parametric')
                     para_list = col.find('ul', class_='ul__parametric--parts')
+                    custom_div = col.find('div', id=lambda x: x and x.startswith('custom_part'))
                     
                     if parametric:
                         parametric.decompose()
@@ -193,13 +194,18 @@ class PCPPParser:
                     if para_list:
                         para_list.decompose()
                         
+                    if custom_div:
+                        custom_div.decompose()
+                        
                     # Grab and cleanup part name, if there is one
-                    if col.a:
-                        part_name = col.a.text
-                        part_url = col.a.get('href')
+                    if col.text:
+                        part_name = col.text
                         data['name'] = part_name.strip()
-                        data['url'] = self.pcpp_base_url + part_url
-                
+                        
+                        if col.a and '#view custom part' not in col.a.get('href'):
+                            part_url = col.a.get('href')
+                            data['url'] = self.pcpp_base_url + part_url
+
                 # Get the price. Only a link if the vendor is specified
                 elif col_name == 'price' and 'td--empty' not in col_classes:
                     # Remove the h6.xs-block with the header "Price" for smaller screens
@@ -214,9 +220,9 @@ class PCPPParser:
                     
                     data['price'] = price
                 
-                # Always a link
+                # A component type OR 'Custom'
                 elif col_name == 'component':
-                    data['component'] = col.a.text.strip()
+                    data['component'] = col.text.strip()
                 
                 # Get the vendor, or if its been purchased
                 elif col_name == 'where' and 'td--empty' not in col_classes:
