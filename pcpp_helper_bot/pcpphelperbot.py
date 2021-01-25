@@ -326,7 +326,7 @@ class PCPPHelperBot:
         
         flair = submission.link_flair_text
         had_identifiable = len(iden_anon_urls) != 0
-        missing_table = len(table_data['total']) == 0
+        missing_table = table_data['total'] == 0
         
         # Reddit id's are in base 36
         reply_id = int(reply.id, 36)
