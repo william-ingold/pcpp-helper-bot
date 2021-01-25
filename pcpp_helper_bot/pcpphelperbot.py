@@ -65,6 +65,7 @@ class PCPPHelperBot:
         self.pcpp_parser = PCPPParser(log_file_handler)
         self.table_creator = TableCreator()
         self.MAX_TABLES = 2
+        self.subreddit_name = None
         
         # Read in the templates
         with open('./templates/replytemplate.md', 'r') as template:
@@ -83,25 +84,38 @@ class PCPPHelperBot:
         Args:
             subreddit_name (str): The name of the subreddit
         """
+        continue_monitoring = True
+        self.subreddit_name = subreddit_name
         
-        subreddit = self.reddit.subreddit(subreddit_name)
+        # skip_existing will skip the posts made BEFORE the bot starts observing
+        # By default, up to 100 historical submissions/comments would be returned
+        # See PRAW.reddit.SubredditStream #3147
+        subreddit = self.reddit.subreddit(subreddit_name, skip_existing=True)
         
         # Stream in new submissions from the subreddit
-        for submission in subreddit.stream.submissions():
-            unpaired_urls, iden_anon_urls, table_data = self.read_submission(submission)
-            
-            # If there are missing/broken tables or identifiable links
-            if len(unpaired_urls) != 0 or len(iden_anon_urls) != 0:
-                self.logger.info('FOUND TABLELESS OR IDENTIFIABLE URLS')
-                self.logger.info(f'SUBMISSION TEXT: {submission.selftext}')
-                
-                self.reply(submission, unpaired_urls, iden_anon_urls, table_data)
+        while continue_monitoring:
+            try:
+                for submission in subreddit.stream.submissions():
+                    unpaired_urls, iden_anon_urls, table_data = self.read_submission(submission)
+                    
+                    # If there are missing/broken tables or identifiable links
+                    if len(unpaired_urls) != 0 or len(iden_anon_urls) != 0:
+                        self.logger.info('FOUND TABLELESS OR IDENTIFIABLE URLS')
+                        self.logger.info(f'SUBMISSION TEXT: {submission.selftext}')
+                        
+                        self.reply(submission, unpaired_urls, iden_anon_urls, table_data)
 
-            should_stop, reason = self._check_inbox_for_stop()
-            if should_stop:
-                self.logger.info(f'STOPPING BY REQUEST. REASON: {reason}')
-                break
+                    should_stop, reason = self._check_inbox_for_stop()
+                    if should_stop:
+                        self.logger.info(f'STOPPING BY REQUEST. REASON: {reason}')
+                        continue_monitoring = False
+                        break
+                        
+            except Exception as e:
+                self.logger.critical('Problem connecting to Reddit or in creating reply')
+                self.logger.critical('Exception data: ', exc_info=True)
                 
+            # TODO: Catch any exceptions for when Reddit is down or PRAW has issues
         self._cleanup_database()
 
     def read_submission(self, submission: praw.reddit.Submission):
@@ -368,7 +382,7 @@ class PCPPHelperBot:
                 author = item.author
                 
                 # Check if the messenger is a moderator of r/buildapc
-                if not author.is_suspended and author.is_mod and 'buildapc' in author.moderated():
+                if not author.is_suspended and author.is_mod and self.subreddit_name in author.moderated():
                     subject = item.subject
                     
                     # Did they tell me to stop?
