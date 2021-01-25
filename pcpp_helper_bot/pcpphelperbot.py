@@ -90,12 +90,12 @@ class PCPPHelperBot:
         # skip_existing will skip the posts made BEFORE the bot starts observing
         # By default, up to 100 historical submissions/comments would be returned
         # See PRAW.reddit.SubredditStream #3147
-        subreddit = self.reddit.subreddit(subreddit_name, skip_existing=True)
+        subreddit = self.reddit.subreddit(subreddit_name)
         
         # Stream in new submissions from the subreddit
         while continue_monitoring:
             try:
-                for submission in subreddit.stream.submissions():
+                for submission in subreddit.stream.submissions(skip_existing=True):
                     unpaired_urls, iden_anon_urls, table_data = self.read_submission(submission)
                     
                     # If there are missing/broken tables or identifiable links
