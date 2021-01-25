@@ -83,7 +83,11 @@ class TableCreator:
         """
         
         component = f"**{part.component}**"
-        item = f"[{part.name}]({part.url})"
+        
+        if part.url and len(part.url) != 0:
+            item = f"[{part.name}]({part.url})"
+        else:
+            item = part.name
         
         if len(part.price) != 0:
             price = part.price
