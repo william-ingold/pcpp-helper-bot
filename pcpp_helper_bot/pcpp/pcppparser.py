@@ -167,6 +167,8 @@ class PCPPParser:
         data = {'component': '', 'name': '', 'url': '', 'price': -1.0,
                 'vendor': '', 'vendor_aff_url': '', 'vendor_url': ''}
         
+        is_custom = False
+        
         for col in table_row.find_all('td'):
             col_classes = col.get('class')
             
@@ -194,7 +196,9 @@ class PCPPParser:
                     if para_list:
                         para_list.decompose()
                         
+                    # Users can add their own parts
                     if custom_div:
+                        is_custom = True
                         custom_div.decompose()
                         
                     # Grab and cleanup part name, if there is one
@@ -202,9 +206,11 @@ class PCPPParser:
                         part_name = col.text
                         data['name'] = part_name.strip()
                         
-                        if col.a and '#view custom part' not in col.a.get('href'):
+                        if col.a and not is_custom:
                             part_url = col.a.get('href')
                             data['url'] = self.pcpp_base_url + part_url
+                        elif is_custom:
+                            data['name'] += ' ^(&dagger;)'
 
                 # Get the price. Only a link if the vendor is specified
                 elif col_name == 'price' and 'td--empty' not in col_classes:
