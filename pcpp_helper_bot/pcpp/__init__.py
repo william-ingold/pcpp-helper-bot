@@ -1,2 +1,0 @@
-class PCPartPickerList(object):
-    pass
